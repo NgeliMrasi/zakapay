@@ -1,0 +1,12 @@
+# ZakaPay — Keep secrets and backups out of git
+users.json
+users.json.backup
+*.pyc
+__pycache__/
+.env
+*.key
+*.secret
+app_v1_backup.py
+zakapay_v1.py
+tunnel.sh
+genesis.py

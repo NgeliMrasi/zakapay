@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-ZakaPay — WhatsApp Payment API
-Professional WhatsApp UI for ZakaPay.
-Deployed on Render (24/7, always-on).
+ZakaPay v2.1 — Professional WhatsApp UI with State Tracking
+Users select a menu option, then just type the amount.
+No need to repeat the command word.
 """
 
 import os
 import json
 import hashlib
 import requests
+import time
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from stellar_sdk import Keypair, Server, TransactionBuilder, Network, Asset
@@ -16,13 +17,16 @@ from stellar_sdk import Keypair, Server, TransactionBuilder, Network, Asset
 app = Flask(__name__)
 CORS(app)
 
-# ─── Configuration ───
-
 HORIZON = "https://horizon-testnet.stellar.org"
 NETWORK = Network.TESTNET_NETWORK_PASSPHRASE
 DB_FILE = os.environ.get("DB_FILE", "users.json")
 ZARC_FILE = os.environ.get("ZARC_FILE", "zarc.json")
 server = Server(horizon_url=HORIZON)
+
+# ─── User State Tracking ───
+# Tracks what the user is currently doing
+# States: None, "awaiting_send_amount", "awaiting_deposit_amount", "awaiting_withdraw_amount"
+user_states = {}
 
 
 def load_users():
@@ -87,7 +91,6 @@ def find_user(users, phone):
 # ─── WhatsApp Message Formatting ───
 
 def format_menu(user_name):
-    """Main menu with numbered options."""
     return (
         f"Hello {user_name}! Welcome to ZakaPay.\n"
         f"Banking without a bank.\n"
@@ -96,8 +99,8 @@ def format_menu(user_name):
         f"\n"
         f"1. Check Balance\n"
         f"2. Send Money\n"
-        f"3. Deposit (Bank → ZakaPay)\n"
-        f"4. Withdraw (ZakaPay → Bank)\n"
+        f"3. Deposit (Bank \u2192 ZakaPay)\n"
+        f"4. Withdraw (ZakaPay \u2192 Bank)\n"
         f"5. Transaction History\n"
         f"6. Help\n"
         f"\n"
@@ -106,7 +109,6 @@ def format_menu(user_name):
 
 
 def format_balance(name, zar, xlm):
-    """Clean balance display."""
     return (
         f"Your Balances\n"
         f"\n"
@@ -123,10 +125,10 @@ def format_send_prompt():
     return (
         f"Send Money\n"
         f"\n"
-        f"Enter the amount and phone number:\n"
+        f"Enter amount and phone number:\n"
         f"\n"
         f"Example:\n"
-        f"  send 100 +27820000002\n"
+        f"  100 +27820000002\n"
         f"\n"
         f"Or reply 0 for Main Menu"
     )
@@ -151,14 +153,14 @@ def format_send_success(amount, recipient_name, recipient_phone, new_balance, tx
 
 def format_deposit_prompt():
     return (
-        f"Deposit (Bank → ZakaPay)\n"
+        f"Deposit (Bank \u2192 ZakaPay)\n"
         f"\n"
-        f"Enter the amount to deposit:\n"
+        f"Enter the amount:\n"
         f"\n"
         f"Example:\n"
-        f"  deposit 500\n"
+        f"  500\n"
         f"\n"
-        f"Maximum: R50,000 per transaction\n"
+        f"Maximum: R50,000\n"
         f"\n"
         f"Reply 0 for Main Menu"
     )
@@ -172,8 +174,6 @@ def format_deposit_success(amount, new_balance, tx_hash):
         f"New Balance: R{new_balance:,.2f}\n"
         f"Tx: {tx_hash[:16]}...\n"
         f"\n"
-        f"Funds are now available in your ZakaPay wallet.\n"
-        f"\n"
         f"View: https://stellar.expert/explorer/testnet/tx/{tx_hash}\n"
         f"\n"
         f"Reply 0 for Main Menu"
@@ -182,12 +182,12 @@ def format_deposit_success(amount, new_balance, tx_hash):
 
 def format_withdraw_prompt():
     return (
-        f"Withdraw (ZakaPay → Bank)\n"
+        f"Withdraw (ZakaPay \u2192 Bank)\n"
         f"\n"
-        f"Enter the amount to withdraw:\n"
+        f"Enter the amount:\n"
         f"\n"
         f"Example:\n"
-        f"  withdraw 500\n"
+        f"  500\n"
         f"\n"
         f"Funds arrive in 1-2 business days.\n"
         f"\n"
@@ -203,7 +203,7 @@ def format_withdraw_success(amount, new_balance, tx_hash):
         f"New Balance: R{new_balance:,.2f}\n"
         f"Tx: {tx_hash[:16]}...\n"
         f"\n"
-        f"Funds will reflect in your bank account in 1-2 business days.\n"
+        f"Funds in bank account in 1-2 days.\n"
         f"\n"
         f"View: https://stellar.expert/explorer/testnet/tx/{tx_hash}\n"
         f"\n"
@@ -215,19 +215,21 @@ def format_help():
     return (
         f"ZakaPay Help\n"
         f"\n"
-        f"Commands:\n"
-        f"  hi / menu     — Main menu\n"
-        f"  1             — Check balance\n"
-        f"  2             — Send money\n"
-        f"  3             — Deposit from bank\n"
-        f"  4             — Withdraw to bank\n"
-        f"  5             — Transaction history\n"
-        f"  6             — This help page\n"
-        f"  balance       — Quick balance\n"
-        f"  send R100 +27xxx — Quick send\n"
-        f"  deposit 500   — Quick deposit\n"
-        f"  withdraw 500  — Quick withdraw\n"
-        f"  register Name 1234 — Create wallet\n"
+        f"Menu Commands:\n"
+        f"  hi / menu     \u2014 Main menu\n"
+        f"  1             \u2014 Check balance\n"
+        f"  2             \u2014 Send money\n"
+        f"  3             \u2014 Deposit from bank\n"
+        f"  4             \u2014 Withdraw to bank\n"
+        f"  5             \u2014 Transaction history\n"
+        f"  6             \u2014 This help page\n"
+        f"\n"
+        f"Quick Commands:\n"
+        f"  balance       \u2014 Quick balance\n"
+        f"  send 100 +27xxx \u2014 Quick send\n"
+        f"  deposit 500   \u2014 Quick deposit\n"
+        f"  withdraw 500  \u2014 Quick withdraw\n"
+        f"  register Name 1234 \u2014 Create wallet\n"
         f"\n"
         f"Support: ngeli@zakapay.africa\n"
         f"Website: zakapay.africa\n"
@@ -249,8 +251,7 @@ def format_welcome_unregistered():
         f"Example:\n"
         f"  register Thabo 1234\n"
         f"\n"
-        f"Your PIN (1234) protects your wallet.\n"
-        f"Choose a PIN you can remember."
+        f"Your PIN (1234) protects your wallet."
     )
 
 
@@ -262,10 +263,10 @@ def format_registration_success(name, public_key):
         f"Address: {public_key[:16]}...\n"
         f"\n"
         f"You can now:\n"
-        f"  - Send money to anyone\n"
-        f"  - Receive money from anyone\n"
-        f"  - Deposit from your bank\n"
-        f"  - Withdraw to your bank\n"
+        f"  \u2022 Send money to anyone\n"
+        f"  \u2022 Receive money from anyone\n"
+        f"  \u2022 Deposit from your bank\n"
+        f"  \u2022 Withdraw to your bank\n"
         f"\n"
         f"Send hi to see the menu.\n"
         f"\n"
@@ -287,22 +288,21 @@ def format_error(error_msg):
 
 def handle_register(parts, phone):
     if len(parts) < 3:
-        return format_error("Usage: register YourName 1234\n\nExample: register Thabo 1234")
+        return format_error("Usage: register YourName 1234")
 
     name = parts[1].title()
     pin = parts[2]
 
     if len(pin) < 4 or not pin.isdigit():
-        return format_error("PIN must be at least 4 digits.\n\nExample: register Thabo 1234")
+        return format_error("PIN must be at least 4 digits.")
 
     users = load_users()
-    user_phone, existing = find_user(users, phone)
+    _, existing = find_user(users, phone)
     if existing:
-        return format_error(f"You already have a wallet, {existing['name']}.\n\nSend hi to see the menu.")
+        return format_error(f"You already have a wallet, {existing['name']}.\n\nSend hi for the menu.")
 
     kp = Keypair.random()
 
-    # Fund via Friendbot
     try:
         requests.get("https://friendbot.stellar.org", params={"addr": kp.public_key}, timeout=10)
     except:
@@ -315,17 +315,15 @@ def handle_register(parts, phone):
         "public_key": kp.public_key,
         "secret_encrypted": kp.secret,
         "pin_hash": pin_hash,
-        "created_at": __import__("time").strftime("%Y-%m-%d %H:%M:%S"),
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "zar_balance": 0
     }
     save_users(users)
 
-    # Set up ZARC trust line
     zarc = load_zarc()
     if zarc:
         try:
-            from stellar_sdk import Asset as SdkAsset
-            zarc_asset = SdkAsset(zarc["asset_code"], zarc["issuer_public"])
+            zarc_asset = Asset(zarc["asset_code"], zarc["issuer_public"])
             account = server.load_account(kp.public_key)
             tx = (
                 TransactionBuilder(account, NETWORK, 100)
@@ -336,7 +334,6 @@ def handle_register(parts, phone):
             tx.sign(kp)
             server.submit_transaction(tx)
 
-            # Issue initial ZARC
             issuer_kp = Keypair.from_secret(zarc["issuer_secret"])
             issuer_account = server.load_account(issuer_kp.public_key)
             tx = (
@@ -375,34 +372,33 @@ def handle_balance(phone):
     return format_balance(user["name"], zar, xlm)
 
 
-def handle_send(parts, phone):
+def process_send(phone, amount_str, to_phone):
+    """Process a send transaction."""
     users = load_users()
     _, sender = find_user(users, phone)
     if not sender:
+        user_states.pop(phone, None)
         return format_welcome_unregistered()
 
-    if len(parts) < 3:
-        return format_send_prompt()
-
     try:
-        amount = float(parts[1].replace("r", "").replace("R", "").replace(",", ""))
+        amount = float(amount_str.replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
-        return format_error("Invalid amount.\n\nExample: send 100 +27820000002")
+        user_states.pop(phone, None)
+        return format_error("Invalid amount.")
 
-    to_phone = parts[2]
     if not to_phone.startswith("+"):
         to_phone = "+" + to_phone
 
     _, receiver = find_user(users, to_phone)
     if not receiver:
-        return format_error(f"{to_phone} is not registered on ZakaPay.\n\nThey need to register first:\nregister TheirName 1234")
+        user_states.pop(phone, None)
+        return format_error(f"{to_phone} is not registered.\n\nThey need to register first.")
 
-    # Check ZARC balance
     zar_balance = get_zarc_balance(sender["public_key"])
     if zar_balance < amount:
-        return format_error(f"Insufficient balance.\n\nYour Balance: R{zar_balance:,.2f}\nSending: R{amount:,.2f}\n\nDeposit first: deposit {amount:.0f}")
+        user_states.pop(phone, None)
+        return format_error(f"Insufficient balance.\n\nBalance: R{zar_balance:,.2f}\nSending: R{amount:,.2f}")
 
-    # Send ZARC
     sender_kp = Keypair.from_secret(sender["secret_encrypted"])
     zarc = load_zarc()
     zarc_asset = Asset(zarc["asset_code"], zarc["issuer_public"])
@@ -427,26 +423,29 @@ def handle_send(parts, phone):
         users[phone]["zar_balance"] = new_balance
         save_users(users)
 
+        user_states.pop(phone, None)
         return format_send_success(amount, receiver["name"], to_phone, new_balance, resp["hash"])
     except Exception as e:
+        user_states.pop(phone, None)
         return format_error(f"Transfer failed.\n\n{str(e)[:100]}")
 
 
-def handle_deposit(parts, phone):
+def process_deposit(phone, amount_str):
+    """Process a deposit transaction."""
     users = load_users()
     _, user = find_user(users, phone)
     if not user:
+        user_states.pop(phone, None)
         return format_welcome_unregistered()
 
-    if len(parts) < 2:
-        return format_deposit_prompt()
-
     try:
-        amount = float(parts[1].replace("r", "").replace("R", "").replace(",", ""))
+        amount = float(amount_str.replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
-        return format_error("Invalid amount.\n\nExample: deposit 500")
+        user_states.pop(phone, None)
+        return format_error("Invalid amount.")
 
     if amount <= 0 or amount > 50000:
+        user_states.pop(phone, None)
         return format_error("Amount must be between R1 and R50,000.")
 
     zarc = load_zarc()
@@ -473,28 +472,31 @@ def handle_deposit(parts, phone):
         users[phone]["zar_balance"] = new_balance
         save_users(users)
 
+        user_states.pop(phone, None)
         return format_deposit_success(amount, new_balance, resp["hash"])
     except Exception as e:
+        user_states.pop(phone, None)
         return format_error(f"Deposit failed.\n\n{str(e)[:100]}")
 
 
-def handle_withdraw(parts, phone):
+def process_withdraw(phone, amount_str):
+    """Process a withdraw transaction."""
     users = load_users()
     _, user = find_user(users, phone)
     if not user:
+        user_states.pop(phone, None)
         return format_welcome_unregistered()
 
-    if len(parts) < 2:
-        return format_withdraw_prompt()
-
     try:
-        amount = float(parts[1].replace("r", "").replace("R", "").replace(",", ""))
+        amount = float(amount_str.replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
-        return format_error("Invalid amount.\n\nExample: withdraw 500")
+        user_states.pop(phone, None)
+        return format_error("Invalid amount.")
 
     zar_balance = get_zarc_balance(user["public_key"])
     if zar_balance < amount:
-        return format_error(f"Insufficient balance.\n\nYour Balance: R{zar_balance:,.2f}\nWithdrawing: R{amount:,.2f}")
+        user_states.pop(phone, None)
+        return format_error(f"Insufficient balance.\n\nBalance: R{zar_balance:,.2f}\nWithdrawing: R{amount:,.2f}")
 
     zarc = load_zarc()
     user_kp = Keypair.from_secret(user["secret_encrypted"])
@@ -520,8 +522,10 @@ def handle_withdraw(parts, phone):
         users[phone]["zar_balance"] = new_balance
         save_users(users)
 
+        user_states.pop(phone, None)
         return format_withdraw_success(amount, new_balance, resp["hash"])
     except Exception as e:
+        user_states.pop(phone, None)
         return format_error(f"Withdrawal failed.\n\n{str(e)[:100]}")
 
 
@@ -534,7 +538,7 @@ def handle_history(phone):
     return (
         f"Transaction History\n"
         f"\n"
-        f"View all your transactions on Stellar:\n"
+        f"View all transactions on Stellar:\n"
         f"\n"
         f"https://stellar.expert/explorer/testnet/account/{user['public_key']}\n"
         f"\n"
@@ -545,30 +549,81 @@ def handle_history(phone):
 # ─── Main Message Router ───
 
 def handle_message(message, phone):
-    """Route incoming message to the right handler."""
     msg = message.strip()
     lower = msg.lower()
     parts = msg.split()
 
-    # Main menu / greeting
-    if lower in ["hi", "hello", "hey", "menu", "0", "start", "hola"]:
+    # ─── Check if user is in a state (awaiting input) ───
+    state = user_states.get(phone)
+
+    # 0 always goes to main menu and clears state
+    if lower in ["0", "menu", "back"]:
+        user_states.pop(phone, None)
         users = load_users()
         _, user = find_user(users, phone)
         if user:
             return format_menu(user["name"])
         return format_welcome_unregistered()
 
-    # Number shortcuts
-    if lower in ["1", "balance", "bal"]:
+    # If user is awaiting a send amount+phone
+    if state == "awaiting_send":
+        # Expecting: "100 +27820000002" or "send 100 +27820000002"
+        send_parts = msg.replace(",", "").split()
+
+        # If they typed "send 100 +27xxx"
+        if send_parts[0].lower() == "send":
+            send_parts = send_parts[1:]
+
+        if len(send_parts) >= 2:
+            amount_str = send_parts[0].replace("r", "").replace("R", "")
+            to_phone = send_parts[1]
+            return process_send(phone, amount_str, to_phone)
+        else:
+            return format_error("Please enter amount and phone number.\n\nExample: 100 +27820000002")
+
+    # If user is awaiting a deposit amount
+    if state == "awaiting_deposit":
+        amount_str = lower.replace("r", "").replace("R", "").replace(",", "").replace("deposit", "").strip()
+        if amount_str:
+            return process_deposit(phone, amount_str)
+        return format_error("Please enter the amount.\n\nExample: 500")
+
+    # If user is awaiting a withdraw amount
+    if state == "awaiting_withdraw":
+        amount_str = lower.replace("r", "").replace("R", "").replace(",", "").replace("withdraw", "").strip()
+        if amount_str:
+            return process_withdraw(phone, amount_str)
+        return format_error("Please enter the amount.\n\nExample: 500")
+
+    # ─── No active state — process commands ───
+
+    # Main menu / greeting
+    if lower in ["hi", "hello", "hey", "start", "hola"]:
+        users = load_users()
+        _, user = find_user(users, phone)
+        if user:
+            return format_menu(user["name"])
+        return format_welcome_unregistered()
+
+    # Number shortcuts from menu
+    if lower == "1":
         return handle_balance(phone)
+
     if lower == "2":
+        user_states[phone] = "awaiting_send"
         return format_send_prompt()
+
     if lower == "3":
+        user_states[phone] = "awaiting_deposit"
         return format_deposit_prompt()
+
     if lower == "4":
+        user_states[phone] = "awaiting_withdraw"
         return format_withdraw_prompt()
+
     if lower == "5":
         return handle_history(phone)
+
     if lower in ["6", "help"]:
         return format_help()
 
@@ -576,20 +631,31 @@ def handle_message(message, phone):
     if lower.startswith("register"):
         return handle_register(parts, phone)
 
-    # Send
+    # Quick commands (bypass state)
     if lower.startswith("send"):
-        return handle_send(parts, phone)
+        send_parts = msg.replace(",", "").split()
+        if len(send_parts) >= 3:
+            amount_str = send_parts[1].replace("r", "").replace("R", "")
+            to_phone = send_parts[2]
+            return process_send(phone, amount_str, to_phone)
+        user_states[phone] = "awaiting_send"
+        return format_send_prompt()
 
-    # Deposit
     if lower.startswith("deposit"):
-        return handle_deposit(parts, phone)
+        amount_str = lower.replace("r", "").replace(",", "").replace("deposit", "").strip()
+        if amount_str:
+            return process_deposit(phone, amount_str)
+        user_states[phone] = "awaiting_deposit"
+        return format_deposit_prompt()
 
-    # Withdraw
     if lower.startswith("withdraw"):
-        return handle_withdraw(parts, phone)
+        amount_str = lower.replace("r", "").replace(",", "").replace("withdraw", "").strip()
+        if amount_str:
+            return process_withdraw(phone, amount_str)
+        user_states[phone] = "awaiting_withdraw"
+        return format_withdraw_prompt()
 
-    # Quick balance
-    if lower in ["bal", "zar", "rands", "money"]:
+    if lower in ["balance", "bal", "zar", "rands", "money"]:
         return handle_balance(phone)
 
     # Fallback
@@ -605,7 +671,6 @@ def handle_message(message, phone):
 
 @app.route("/webhook", methods=["POST"])
 def webhook_twilio():
-    """Twilio WhatsApp webhook."""
     msg = request.form.get("Body", "").strip()
     phone = request.form.get("From", "").replace("whatsapp:", "")
 
@@ -619,7 +684,6 @@ def webhook_twilio():
 
 @app.route("/api/v1/webhook/whatsapp", methods=["POST"])
 def webhook_360dialog():
-    """360dialog WhatsApp webhook."""
     data = request.json
     if not data:
         return jsonify({"error": "No data"}), 400
@@ -636,16 +700,14 @@ def webhook_360dialog():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health check for Render."""
-    return jsonify({"status": "ok", "service": "ZakaPay API"}), 200
+    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "2.1"}), 200
 
 
 @app.route("/", methods=["GET"])
 def home():
-    """Redirect to landing page."""
     return jsonify({
         "service": "ZakaPay API",
-        "version": "2.0",
+        "version": "2.1",
         "status": "running",
         "endpoints": {
             "health": "/health",

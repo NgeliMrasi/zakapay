@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 ZakaPay v2.2 — Professional WhatsApp UI with Persistent State
-State survives Render free tier spin-downs.
 """
 
 import os
@@ -18,13 +17,21 @@ CORS(app)
 
 HORIZON = "https://horizon-testnet.stellar.org"
 NETWORK = Network.TESTNET_NETWORK_PASSPHRASE
-DB_FILE = os.environ.get("DB_FILE", "users.json")
-ZARC_FILE = os.environ.get("ZARC_FILE", "zarc.json")
-STATE_FILE = os.environ.get("STATE_FILE", "user_states.json")
+DB_FILE = "users.json"
+ZARC_FILE = "zarc.json"
+STATE_FILE = "user_states.json"
 server = Server(horizon_url=HORIZON)
 
+# Embedded ZARC config (testnet keys — no real value)
+ZARC_EMBEDDED = {
+    "asset_code": "ZARC",
+    "issuer_public": "GB2YP3NLSRJCO2TGIX6XYD4UQA2IG6CRUSTLUJPP4KS2OCFU6DWWPRGP",
+    "issuer_secret": "SBEUK5WLNNWG4HLQUKXIZVDXVP5ZGQIZS5VVUOKEIXVHAWR3MQ24CKWP",
+    "distribution_public": "GCLMUIDFWHVOZJT2XNNNXVFJMSQBQ4VNVK5533DGMYR2Z2HVZ5WUOQ5A",
+    "distribution_secret": "SDQBNXN5MLGLRLLGUZGKHLX5I6SZXW275ZWP4D4ZUBD42DQ4QXR7EG6L",
+    "liquidity_pool_id": "2d17f18cdf3dd9ae2eb3d226bae267d5b6095dcfe65232a7bd911541a4185f5c"
+}
 
-# ─── Persistent State ───
 
 def load_state():
     try:
@@ -40,8 +47,7 @@ def save_state(states):
 
 
 def get_user_state(phone):
-    states = load_state()
-    return states.get(phone)
+    return load_state().get(phone)
 
 
 def set_user_state(phone, state):
@@ -55,8 +61,6 @@ def clear_user_state(phone):
     states.pop(phone, None)
     save_state(states)
 
-
-# ─── Data Loading ───
 
 def load_users():
     try:
@@ -76,7 +80,7 @@ def load_zarc():
         with open(ZARC_FILE, "r") as f:
             return json.load(f)
     except FileNotFoundError:
-        return None
+        return ZARC_EMBEDDED
 
 
 def get_balance(public_key, asset_code="native"):
@@ -95,8 +99,6 @@ def get_balance(public_key, asset_code="native"):
 
 def get_zarc_balance(public_key):
     zarc = load_zarc()
-    if not zarc:
-        return 0.0
     try:
         resp = requests.get(f"{HORIZON}/accounts/{public_key}", timeout=10)
         if resp.status_code == 200:
@@ -117,11 +119,9 @@ def find_user(users, phone):
     return None, None
 
 
-# ─── Message Formatting ───
-
-def format_menu(user_name):
+def format_menu(name):
     return (
-        f"Hello {user_name}! Welcome to ZakaPay.\n"
+        f"Hello {name}! Welcome to ZakaPay.\n"
         f"Banking without a bank.\n"
         f"\n"
         f"What would you like to do?\n"
@@ -139,129 +139,96 @@ def format_menu(user_name):
 
 def format_balance(name, zar, xlm):
     return (
-        f"Your Balances\n"
-        f"\n"
+        f"Your Balances\n\n"
         f"Rands: R{zar:,.2f}\n"
-        f"XLM: {xlm:,.2f}\n"
-        f"\n"
-        f"1 ZARC = R1.00\n"
-        f"\n"
+        f"XLM: {xlm:,.2f}\n\n"
+        f"1 ZARC = R1.00\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
 def format_send_prompt():
     return (
-        f"Send Money\n"
-        f"\n"
-        f"Enter amount and phone number:\n"
-        f"\n"
-        f"Example:\n"
-        f"  100 +27820000002\n"
-        f"\n"
+        f"Send Money\n\n"
+        f"Enter amount and phone number:\n\n"
+        f"Example:\n  100 +27820000002\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
-def format_send_success(amount, name, phone, bal, tx):
+def format_send_success(amt, name, phone, bal, tx):
     return (
-        f"Sent!\n"
-        f"\n"
-        f"Amount: R{amount:,.2f}\n"
+        f"Sent!\n\n"
+        f"Amount: R{amt:,.2f}\n"
         f"To: {name}\n"
         f"Phone: {phone}\n"
         f"Your Balance: R{bal:,.2f}\n"
-        f"Tx: {tx[:16]}...\n"
-        f"\n"
-        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n"
-        f"\n"
+        f"Tx: {tx[:16]}...\n\n"
+        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
 def format_deposit_prompt():
     return (
-        f"Deposit (Bank \u2192 ZakaPay)\n"
-        f"\n"
-        f"Enter the amount:\n"
-        f"\n"
-        f"Example:\n"
-        f"  500\n"
-        f"\n"
-        f"Maximum: R50,000\n"
-        f"\n"
+        f"Deposit (Bank \u2192 ZakaPay)\n\n"
+        f"Enter the amount:\n\n"
+        f"Example:\n  500\n\n"
+        f"Maximum: R50,000\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
-def format_deposit_success(amount, bal, tx):
+def format_deposit_success(amt, bal, tx):
     return (
-        f"Deposit Successful!\n"
-        f"\n"
-        f"Amount: R{amount:,.2f}\n"
+        f"Deposit Successful!\n\n"
+        f"Amount: R{amt:,.2f}\n"
         f"New Balance: R{bal:,.2f}\n"
-        f"Tx: {tx[:16]}...\n"
-        f"\n"
-        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n"
-        f"\n"
+        f"Tx: {tx[:16]}...\n\n"
+        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
 def format_withdraw_prompt():
     return (
-        f"Withdraw (ZakaPay \u2192 Bank)\n"
-        f"\n"
-        f"Enter the amount:\n"
-        f"\n"
-        f"Example:\n"
-        f"  500\n"
-        f"\n"
-        f"Funds arrive in 1-2 business days.\n"
-        f"\n"
+        f"Withdraw (ZakaPay \u2192 Bank)\n\n"
+        f"Enter the amount:\n\n"
+        f"Example:\n  500\n\n"
+        f"Funds arrive in 1-2 business days.\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
-def format_withdraw_success(amount, bal, tx):
+def format_withdraw_success(amt, bal, tx):
     return (
-        f"Withdrawal Successful!\n"
-        f"\n"
-        f"Amount: R{amount:,.2f}\n"
+        f"Withdrawal Successful!\n\n"
+        f"Amount: R{amt:,.2f}\n"
         f"New Balance: R{bal:,.2f}\n"
-        f"Tx: {tx[:16]}...\n"
-        f"\n"
-        f"Funds in bank account in 1-2 days.\n"
-        f"\n"
-        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n"
-        f"\n"
+        f"Tx: {tx[:16]}...\n\n"
+        f"Funds in bank account in 1-2 days.\n\n"
+        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
         f"Reply 0 for Main Menu"
     )
 
 
 def format_help():
     return (
-        f"ZakaPay Help\n"
-        f"\n"
+        f"ZakaPay Help\n\n"
         f"Menu:\n"
-        f"  hi / 0    \u2014 Main menu\n"
-        f"  1         \u2014 Check balance\n"
-        f"  2         \u2014 Send money\n"
-        f"  3         \u2014 Deposit\n"
-        f"  4         \u2014 Withdraw\n"
-        f"  5         \u2014 History\n"
-        f"  6         \u2014 Help\n"
-        f"\n"
+        f"  hi / 0  \u2014 Main menu\n"
+        f"  1       \u2014 Balance\n"
+        f"  2       \u2014 Send\n"
+        f"  3       \u2014 Deposit\n"
+        f"  4       \u2014 Withdraw\n"
+        f"  5       \u2014 History\n"
+        f"  6       \u2014 Help\n\n"
         f"Quick:\n"
-        f"  balance\n"
         f"  send 100 +27xxx\n"
         f"  deposit 500\n"
-        f"  withdraw 500\n"
-        f"  register Name 1234\n"
-        f"\n"
+        f"  register Name 1234\n\n"
         f"Support: ngeli@zakapay.africa\n"
-        f"Website: zakapay.africa\n"
-        f"\n"
+        f"Website: zakapay.africa\n\n"
         f"Reply 0 for Main Menu"
     )
 
@@ -269,33 +236,25 @@ def format_help():
 def format_welcome():
     return (
         f"Welcome to ZakaPay!\n"
-        f"Banking without a bank.\n"
-        f"\n"
+        f"Banking without a bank.\n\n"
         f"You don't have a wallet yet.\n"
-        f"Create one in 10 seconds:\n"
-        f"\n"
-        f"Send: register YourName 1234\n"
-        f"\n"
-        f"Example:\n"
-        f"  register Thabo 1234"
+        f"Create one in 10 seconds:\n\n"
+        f"Send: register YourName 1234\n\n"
+        f"Example:\n  register Thabo 1234"
     )
 
 
 def format_registered(name, pk):
     return (
-        f"Welcome to ZakaPay, {name}!\n"
-        f"\n"
+        f"Welcome to ZakaPay, {name}!\n\n"
         f"Your wallet is ready.\n"
-        f"Address: {pk[:16]}...\n"
-        f"\n"
+        f"Address: {pk[:16]}...\n\n"
         f"You can now:\n"
-        f"  \u2022 Send money to anyone\n"
-        f"  \u2022 Receive money from anyone\n"
-        f"  \u2022 Deposit from your bank\n"
-        f"  \u2022 Withdraw to your bank\n"
-        f"\n"
-        f"Send hi to see the menu.\n"
-        f"\n"
+        f"  \u2022 Send money\n"
+        f"  \u2022 Receive money\n"
+        f"  \u2022 Deposit from bank\n"
+        f"  \u2022 Withdraw to bank\n\n"
+        f"Send hi to see the menu.\n\n"
         f"Reply 0 for Main Menu"
     )
 
@@ -304,50 +263,40 @@ def format_error(msg):
     return f"Oops!\n\n{msg}\n\nReply 0 for Main Menu"
 
 
-# ─── Transaction Processors ───
-
 def process_send(phone, amount_str, to_phone):
     users = load_users()
     _, sender = find_user(users, phone)
     if not sender:
         clear_user_state(phone)
         return format_welcome()
-
     try:
         amount = float(amount_str.replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
         return format_error("Invalid amount.")
-
     if not to_phone.startswith("+"):
         to_phone = "+" + to_phone
-
     _, receiver = find_user(users, to_phone)
     if not receiver:
         clear_user_state(phone)
         return format_error(f"{to_phone} not registered.")
-
     zar = get_zarc_balance(sender["public_key"])
     if zar < amount:
         clear_user_state(phone)
         return format_error(f"Insufficient.\nBalance: R{zar:,.2f}\nSending: R{amount:,.2f}")
-
     sender_kp = Keypair.from_secret(sender["secret_encrypted"])
     zarc = load_zarc()
-    zarc_asset = Asset(zarc["asset_code"], zarc["issuer_public"])
-
+    za = Asset(zarc["asset_code"], zarc["issuer_public"])
     try:
-        account = server.load_account(sender_kp.public_key)
+        acc = server.load_account(sender_kp.public_key)
         tx = (
-            TransactionBuilder(account, NETWORK, 100)
+            TransactionBuilder(acc, NETWORK, 100)
             .add_text_memo(f"ZakaPay:R{amount:.0f} to {receiver['name']}")
-            .append_payment_op(destination=receiver["public_key"], amount=f"{amount:.2f}", asset=zarc_asset)
-            .set_timeout(30)
-            .build()
+            .append_payment_op(destination=receiver["public_key"], amount=f"{amount:.2f}", asset=za)
+            .set_timeout(30).build()
         )
         tx.sign(sender_kp)
         resp = server.submit_transaction(tx)
-
         new_bal = get_zarc_balance(sender["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)
@@ -364,33 +313,27 @@ def process_deposit(phone, amount_str):
     if not user:
         clear_user_state(phone)
         return format_welcome()
-
     try:
         amount = float(amount_str.replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
         return format_error("Invalid amount.")
-
     if amount <= 0 or amount > 50000:
         clear_user_state(phone)
         return format_error("R1 - R50,000 only.")
-
     zarc = load_zarc()
-    issuer_kp = Keypair.from_secret(zarc["issuer_secret"])
-    zarc_asset = Asset(zarc["asset_code"], zarc["issuer_public"])
-
+    ikp = Keypair.from_secret(zarc["issuer_secret"])
+    za = Asset(zarc["asset_code"], zarc["issuer_public"])
     try:
-        issuer = server.load_account(issuer_kp.public_key)
+        ia = server.load_account(ikp.public_key)
         tx = (
-            TransactionBuilder(issuer, NETWORK, 100)
+            TransactionBuilder(ia, NETWORK, 100)
             .add_text_memo(f"ZakaPay:Deposit:R{amount:.0f}")
-            .append_payment_op(destination=user["public_key"], amount=f"{amount:.2f}", asset=zarc_asset)
-            .set_timeout(30)
-            .build()
+            .append_payment_op(destination=user["public_key"], amount=f"{amount:.2f}", asset=za)
+            .set_timeout(30).build()
         )
-        tx.sign(issuer_kp)
+        tx.sign(ikp)
         resp = server.submit_transaction(tx)
-
         new_bal = get_zarc_balance(user["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)
@@ -407,34 +350,28 @@ def process_withdraw(phone, amount_str):
     if not user:
         clear_user_state(phone)
         return format_welcome()
-
     try:
         amount = float(amount_str.replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
         return format_error("Invalid amount.")
-
     zar = get_zarc_balance(user["public_key"])
     if zar < amount:
         clear_user_state(phone)
         return format_error(f"Insufficient.\nBalance: R{zar:,.2f}")
-
     zarc = load_zarc()
-    user_kp = Keypair.from_secret(user["secret_encrypted"])
-    zarc_asset = Asset(zarc["asset_code"], zarc["issuer_public"])
-
+    ukp = Keypair.from_secret(user["secret_encrypted"])
+    za = Asset(zarc["asset_code"], zarc["issuer_public"])
     try:
-        account = server.load_account(user_kp.public_key)
+        acc = server.load_account(ukp.public_key)
         tx = (
-            TransactionBuilder(account, NETWORK, 100)
+            TransactionBuilder(acc, NETWORK, 100)
             .add_text_memo(f"ZakaPay:Withdraw:R{amount:.0f}")
-            .append_payment_op(destination=zarc["distribution_public"], amount=f"{amount:.2f}", asset=zarc_asset)
-            .set_timeout(30)
-            .build()
+            .append_payment_op(destination=zarc["distribution_public"], amount=f"{amount:.2f}", asset=za)
+            .set_timeout(30).build()
         )
-        tx.sign(user_kp)
+        tx.sign(ukp)
         resp = server.submit_transaction(tx)
-
         new_bal = get_zarc_balance(user["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)
@@ -445,47 +382,38 @@ def process_withdraw(phone, amount_str):
         return format_error(f"Failed: {str(e)[:100]}")
 
 
-# ─── Main Message Router ───
-
 def handle_message(message, phone):
     msg = message.strip()
     lower = msg.lower()
     parts = msg.split()
 
-    # 0 / menu / back — always clear state and show menu
     if lower in ["0", "menu", "back"]:
         clear_user_state(phone)
         users = load_users()
         _, user = find_user(users, phone)
         return format_menu(user["name"]) if user else format_welcome()
 
-    # Check persistent state
     state = get_user_state(phone)
 
-    # ─── State: awaiting send ───
     if state == "awaiting_send":
-        send_parts = msg.replace(",", "").split()
-        if send_parts[0].lower() == "send":
-            send_parts = send_parts[1:]
-        if len(send_parts) >= 2:
-            return process_send(phone, send_parts[0], send_parts[1])
+        sp = msg.replace(",", "").split()
+        if sp[0].lower() == "send":
+            sp = sp[1:]
+        if len(sp) >= 2:
+            return process_send(phone, sp[0], sp[1])
         return format_error("Enter amount and phone.\nExample: 100 +27820000002")
 
-    # ─── State: awaiting deposit ───
     if state == "awaiting_deposit":
-        amount = lower.replace("r", "").replace(",", "").replace("deposit", "").strip()
-        if amount:
-            return process_deposit(phone, amount)
+        amt = lower.replace("r", "").replace(",", "").replace("deposit", "").strip()
+        if amt:
+            return process_deposit(phone, amt)
         return format_error("Enter the amount.\nExample: 500")
 
-    # ─── State: awaiting withdraw ───
     if state == "awaiting_withdraw":
-        amount = lower.replace("r", "").replace(",", "").replace("withdraw", "").strip()
-        if amount:
-            return process_withdraw(phone, amount)
+        amt = lower.replace("r", "").replace(",", "").replace("withdraw", "").strip()
+        if amt:
+            return process_withdraw(phone, amt)
         return format_error("Enter the amount.\nExample: 500")
-
-    # ─── No state — process commands ───
 
     if lower in ["hi", "hello", "hey", "start", "hola"]:
         users = load_users()
@@ -520,12 +448,7 @@ def handle_message(message, phone):
         _, user = find_user(users, phone)
         if not user:
             return format_welcome()
-        return (
-            f"Transaction History\n\n"
-            f"View on Stellar:\n"
-            f"https://stellar.expert/explorer/testnet/account/{user['public_key']}\n\n"
-            f"Reply 0 for Main Menu"
-        )
+        return f"Transaction History\n\nView on Stellar:\nhttps://stellar.expert/explorer/testnet/account/{user['public_key']}\n\nReply 0 for Main Menu"
 
     if lower in ["6", "help"]:
         return format_help()
@@ -554,22 +477,21 @@ def handle_message(message, phone):
         }
         save_users(users)
         zarc = load_zarc()
-        if zarc:
-            try:
-                za = Asset(zarc["asset_code"], zarc["issuer_public"])
-                acc = server.load_account(kp.public_key)
-                tx = TransactionBuilder(acc, NETWORK, 100).append_change_trust_op(asset=za, limit="100000").set_timeout(30).build()
-                tx.sign(kp)
-                server.submit_transaction(tx)
-                ikp = Keypair.from_secret(zarc["issuer_secret"])
-                ia = server.load_account(ikp.public_key)
-                tx = TransactionBuilder(ia, NETWORK, 100).add_text_memo("ZakaPay:Welcome").append_payment_op(destination=kp.public_key, amount="100.00", asset=za).set_timeout(30).build()
-                tx.sign(ikp)
-                server.submit_transaction(tx)
-                users[phone]["zar_balance"] = 100
-                save_users(users)
-            except:
-                pass
+        try:
+            za = Asset(zarc["asset_code"], zarc["issuer_public"])
+            acc = server.load_account(kp.public_key)
+            tx = TransactionBuilder(acc, NETWORK, 100).append_change_trust_op(asset=za, limit="100000").set_timeout(30).build()
+            tx.sign(kp)
+            server.submit_transaction(tx)
+            ikp = Keypair.from_secret(zarc["issuer_secret"])
+            ia = server.load_account(ikp.public_key)
+            tx = TransactionBuilder(ia, NETWORK, 100).add_text_memo("ZakaPay:Welcome").append_payment_op(destination=kp.public_key, amount="100.00", asset=za).set_timeout(30).build()
+            tx.sign(ikp)
+            server.submit_transaction(tx)
+            users[phone]["zar_balance"] = 100
+            save_users(users)
+        except Exception as e:
+            print(f"ZARC error: {e}")
         return format_registered(name, kp.public_key)
 
     if lower.startswith("send"):
@@ -606,8 +528,6 @@ def handle_message(message, phone):
 
     return f"I didn't understand that.\n\nSend hi for the menu.\nSend help for commands."
 
-
-# ─── Webhooks ───
 
 @app.route("/webhook", methods=["POST"])
 def webhook_twilio():

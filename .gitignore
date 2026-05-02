@@ -10,3 +10,9 @@ app_v1_backup.py
 zakapay_v1.py
 tunnel.sh
 genesis.py
+
+# Secret files — never push to GitHub
+zarc.json
+users.json
+*.env
+.env

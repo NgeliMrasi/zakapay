@@ -646,16 +646,18 @@ def rule_parse(msg, phone):
         return format_send_prompt()
 
     if lower.startswith("deposit"):
-        amt = lower.replace("r", "").replace(",", "").replace("deposit", "").strip()
-        if amt:
-            return do_deposit(phone, amt)
+        import re
+        amounts = re.findall(r'[\d]+(?:\.\d+)?', lower.replace("r", ""))
+        if amounts:
+            return do_deposit(phone, amounts[0])
         set_user_state(phone, "awaiting_deposit")
         return format_deposit_prompt()
 
     if lower.startswith("withdraw"):
-        amt = lower.replace("r", "").replace(",", "").replace("withdraw", "").strip()
-        if amt:
-            return do_withdraw(phone, amt)
+        import re
+        amounts = re.findall(r'[\d]+(?:\.\d+)?', lower.replace("r", ""))
+        if amounts:
+            return do_withdraw(phone, amounts[0])
         set_user_state(phone, "awaiting_withdraw")
         return format_withdraw_prompt()
 

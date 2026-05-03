@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-ZakaPay v3.1 — AI-Powered WhatsApp Payments
-Enhanced rule-based parser + AI fallback.
+ZakaPay v4.0 — AI-First WhatsApp Payments
+Natural language is the primary interface.
+Users chat like they're talking to a person.
 """
 
 import os
 import json
 import hashlib
+import re
 import requests
 import time
 from flask import Flask, request, jsonify
@@ -31,58 +33,65 @@ ZARC_EMBEDDED = {
     "liquidity_pool_id": "2d17f18cdf3dd9ae2eb3d226bae267d5b6095dcfe65232a7bd911541a4185f5c"
 }
 
-
-# ─── AI Intent (inline, no import issues) ───
-
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
-def ai_understand(user_message):
-    """Call Groq AI for intent recognition."""
-    api_key = GROQ_API_KEY
-    if not api_key:
-        # Try loading from .env
-        try:
-            with open(".env", "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("GROQ_API_KEY="):
-                        api_key = line.split("=", 1)[1]
-        except FileNotFoundError:
-            pass
+def load_env():
+    global GROQ_API_KEY
+    if GROQ_API_KEY:
+        return GROQ_API_KEY
+    try:
+        with open(".env", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("GROQ_API_KEY="):
+                    GROQ_API_KEY = line.split("=", 1)[1]
+    except FileNotFoundError:
+        pass
+    return GROQ_API_KEY
 
+
+# ─── AI Brain ───
+
+def ai_understand(user_message, user_name=None):
+    """AI understands ANY natural language message."""
+    api_key = load_env()
     if not api_key:
-        print("AI: No Groq API key found")
         return None
 
-    prompt = f"""Parse this WhatsApp message from a South African user. Return ONLY valid JSON.
+    context = f"The user's name is {user_name}. " if user_name else ""
+
+    prompt = f"""You are the brain behind ZakaPay, a WhatsApp payment app in South Africa.
+{context}
+The user just sent this WhatsApp message. Understand what they want and return ONLY a JSON object.
 
 Message: "{user_message}"
 
-JSON formats:
-{{"action":"send","amount":<number>,"phone":"<phone or empty>"}}
-{{"action":"balance"}}
-{{"action":"deposit","amount":<number>}}
-{{"action":"withdraw","amount":<number>}}
-{{"action":"register","name":"<name>","pin":"<pin or empty>"}}
-{{"action":"help"}}
-{{"action":"greeting"}}
-{{"action":"history"}}
-{{"action":"unknown"}}
+Possible actions:
+{{"action":"greeting"}} — hi, yebo, heita, howzit, hello, hey, sawubona, dumela, what's up
+{{"action":"balance"}} — check balance, how much do I have, show my money, what's my balance, check my funds
+{{"action":"send","amount":<number>,"phone":"<phone or empty>"}} — send money, transfer, pay someone
+{{"action":"deposit","amount":<number>}} — deposit, put money in, load money, add funds, cash in, top up, put in, bank to wallet
+{{"action":"withdraw","amount":<number>}} — withdraw, take out, cash out, pull out, get money out, send to bank, wallet to bank
+{{"action":"register","name":"<name>","pin":"<pin or empty>"}} — create account, sign up, register, open wallet
+{{"action":"help"}} — what can you do, help, how does this work, commands, options, what do you do
+{{"action":"history"}} — transactions, history, statement, past payments, show my transactions
 
-Examples:
-"yebo" → {{"action":"greeting"}}
-"heita" → {{"action":"greeting"}}
-"howzit" → {{"action":"greeting"}}
-"show me my balance" → {{"action":"balance"}}
-"check my money" → {{"action":"balance"}}
-"send R100 to +27820000002" → {{"action":"send","amount":100,"phone":"+27820000002"}}
-"send fifty bucks to my girl" → {{"action":"send","amount":50,"phone":""}}
-"put in 500 rand" → {{"action":"deposit","amount":500}}
-"take out 200" → {{"action":"withdraw","amount":200}}
-"what can you do" → {{"action":"help"}}
-"show my transactions" → {{"action":"history"}}
+Rules:
+- "take out 1000" → {{"action":"withdraw","amount":1000}}
+- "I want to take out a thousand rand" → {{"action":"withdraw","amount":1000}}
+- "deposit from my bank" → {{"action":"deposit","amount":0}} (amount 0 means not specified)
+- "send R500 to +27820000001" → {{"action":"send","amount":500,"phone":"+27820000001"}}
+- "send 100 bucks to my friend" → {{"action":"send","amount":100,"phone":""}}
+- "check my balance" → {{"action":"balance"}}
+- "how much money do I have" → {{"action":"balance"}}
+- "I need to send money" → {{"action":"send","amount":0,"phone":""}}
+- "can I put in some cash" → {{"action":"deposit","amount":0}}
+- "withdrawal" → {{"action":"withdraw","amount":0}}
+- "show me what I've spent" → {{"action":"history"}}
+- "what is zakapay" → {{"action":"help"}}
+- "register as Sipho pin 5678" → {{"action":"register","name":"Sipho","pin":"5678"}}
 
 Return ONLY the JSON. Nothing else."""
 
@@ -96,7 +105,7 @@ Return ONLY the JSON. Nothing else."""
             json={
                 "model": "llama-3.1-8b-instant",
                 "messages": [
-                    {"role": "system", "content": "Return only valid JSON."},
+                    {"role": "system", "content": "You are a JSON parser for a payment app. Return only valid JSON. No explanation. No markdown."},
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.1,
@@ -108,6 +117,7 @@ Return ONLY the JSON. Nothing else."""
         if resp.status_code == 200:
             data = resp.json()
             text = data["choices"][0]["message"]["content"].strip()
+            # Clean markdown
             if text.startswith("```"):
                 text = text.split("\n", 1)[1] if "\n" in text else text[3:]
             if text.endswith("```"):
@@ -116,7 +126,7 @@ Return ONLY the JSON. Nothing else."""
             if text.startswith("json"):
                 text = text[4:].strip()
             intent = json.loads(text)
-            print(f"AI intent: {intent}")
+            print(f"AI understood: {intent}")
             return intent
         else:
             print(f"AI error: {resp.status_code} - {resp.text[:200]}")
@@ -212,150 +222,140 @@ def find_user(users, phone):
     return None, None
 
 
-# ─── Messages ───
+# ─── Responses ───
 
-def format_menu(name):
+def resp_menu(name):
     return (
-        f"Hello {name}! Welcome to ZakaPay.\n"
-        f"Banking without a bank.\n\n"
-        f"What would you like to do?\n\n"
+        f"Hey {name}! \n\n"
+        f"What can I do for you?\n\n"
         f"1. Check Balance\n"
         f"2. Send Money\n"
         f"3. Deposit (Bank \u2192 ZakaPay)\n"
         f"4. Withdraw (ZakaPay \u2192 Bank)\n"
         f"5. Transaction History\n"
         f"6. Help\n\n"
-        f"Reply with a number (1-6)\n"
         f"Or just tell me what you need!"
     )
 
 
-def format_balance(name, zar, xlm):
+def resp_balance(name, zar, xlm):
     return (
-        f"Your Balances\n\n"
+        f"{name}, here are your balances:\n\n"
         f"Rands: R{zar:,.2f}\n"
         f"XLM: {xlm:,.2f}\n\n"
-        f"1 ZARC = R1.00\n\n"
-        f"Reply 0 for Main Menu"
+        f"Anything else?"
     )
 
 
-def format_send_prompt():
+def resp_send_prompt():
     return (
-        f"Send Money\n\n"
-        f"Enter amount and phone number:\n\n"
-        f"Example:\n  100 +27820000002\n\n"
-        f"Reply 0 for Main Menu"
+        f"Sure! Who do you want to send to?\n\n"
+        f"Tell me the amount and phone number:\n"
+        f"Example: 100 +27820000002\n\n"
+        f"Or just say the amount and I'll ask for the number."
     )
 
 
-def format_send_success(amt, name, phone, bal, tx):
+def resp_send_success(amt, name, phone, bal, tx):
     return (
         f"Sent!\n\n"
-        f"Amount: R{amt:,.2f}\n"
-        f"To: {name}\n"
-        f"Phone: {phone}\n"
-        f"Your Balance: R{bal:,.2f}\n"
-        f"Tx: {tx[:16]}...\n\n"
-        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
-        f"Reply 0 for Main Menu"
+        f"R{amt:,.2f} to {name} ({phone})\n"
+        f"Your balance: R{bal:,.2f}\n\n"
+        f"Tx: {tx[:16]}...\n"
+        f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
+        f"Anything else?"
     )
 
 
-def format_deposit_prompt():
+def resp_deposit_prompt():
     return (
-        f"Deposit (Bank \u2192 ZakaPay)\n\n"
-        f"Enter the amount:\n\n"
-        f"Example:\n  500\n\n"
-        f"Maximum: R50,000\n\n"
-        f"Reply 0 for Main Menu"
+        f"How much do you want to deposit?\n\n"
+        f"Just tell me the amount.\n"
+        f"Example: 500\n\n"
+        f"Maximum: R50,000"
     )
 
 
-def format_deposit_success(amt, bal, tx):
+def resp_deposit_success(amt, bal, tx):
     return (
-        f"Deposit Successful!\n\n"
-        f"Amount: R{amt:,.2f}\n"
-        f"New Balance: R{bal:,.2f}\n"
-        f"Tx: {tx[:16]}...\n\n"
-        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
-        f"Reply 0 for Main Menu"
+        f"Deposit done!\n\n"
+        f"R{amt:,.2f} added to your wallet.\n"
+        f"New balance: R{bal:,.2f}\n\n"
+        f"Tx: {tx[:16]}...\n"
+        f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
+        f"Anything else?"
     )
 
 
-def format_withdraw_prompt():
+def resp_withdraw_prompt():
     return (
-        f"Withdraw (ZakaPay \u2192 Bank)\n\n"
-        f"Enter the amount:\n\n"
-        f"Example:\n  500\n\n"
-        f"Funds arrive in 1-2 business days.\n\n"
-        f"Reply 0 for Main Menu"
+        f"How much do you want to withdraw?\n\n"
+        f"Just tell me the amount.\n"
+        f"Example: 500\n\n"
+        f"Funds arrive in 1-2 business days."
     )
 
 
-def format_withdraw_success(amt, bal, tx):
+def resp_withdraw_success(amt, bal, tx):
     return (
-        f"Withdrawal Successful!\n\n"
-        f"Amount: R{amt:,.2f}\n"
-        f"New Balance: R{bal:,.2f}\n"
-        f"Tx: {tx[:16]}...\n\n"
-        f"Funds in bank account in 1-2 days.\n\n"
-        f"View: https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
-        f"Reply 0 for Main Menu"
+        f"Withdrawal done!\n\n"
+        f"R{amt:,.2f} sent to your bank.\n"
+        f"New balance: R{bal:,.2f}\n\n"
+        f"Tx: {tx[:16]}...\n"
+        f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
+        f"Funds arrive in 1-2 days. Anything else?"
     )
 
 
-def format_help():
+def resp_help():
     return (
-        f"ZakaPay Help\n\n"
-        f"Just tell me what you need!\n\n"
-        f"Examples:\n"
-        f"  \"check my balance\"\n"
-        f"  \"send R100 to +27820000002\"\n"
-        f"  \"deposit 500\"\n"
-        f"  \"withdraw 200\"\n"
-        f"  \"yebo\" (greeting)\n\n"
-        f"Or use the menu:\n"
-        f"  1 = Balance\n"
-        f"  2 = Send\n"
-        f"  3 = Deposit\n"
-        f"  4 = Withdraw\n"
-        f"  5 = History\n"
-        f"  6 = Help\n\n"
-        f"Support: ngeli@zakapay.africa\n"
-        f"Website: zakapay.africa\n\n"
-        f"Reply 0 for Main Menu"
+        f"I'm ZakaPay — your WhatsApp money assistant.\n\n"
+        f"Just talk to me naturally:\n\n"
+        f"  \"Check my balance\"\n"
+        f"  \"Send R100 to +27820000002\"\n"
+        f"  \"I want to deposit 500\"\n"
+        f"  \"Take out 200\"\n"
+        f"  \"Show my transactions\"\n"
+        f"  \"How much do I have?\"\n\n"
+        f"Or use the menu: send hi\n\n"
+        f"Support: ngeli@zakapay.africa"
     )
 
 
-def format_welcome():
+def resp_welcome():
     return (
-        f"Welcome to ZakaPay!\n"
-        f"Banking without a bank.\n\n"
-        f"You don't have a wallet yet.\n"
-        f"Create one in 10 seconds:\n\n"
+        f"Welcome to ZakaPay!\n\n"
+        f"I can help you send and receive money through WhatsApp.\n\n"
+        f"First, let's create your wallet.\n"
         f"Send: register YourName 1234\n\n"
-        f"Example:\n  register Thabo 1234"
+        f"Example: register Thabo 1234"
     )
 
 
-def format_registered(name, pk):
+def resp_registered(name, pk):
     return (
-        f"Welcome to ZakaPay, {name}!\n\n"
-        f"Your wallet is ready.\n"
+        f"Welcome {name}! Your wallet is ready.\n\n"
         f"Address: {pk[:16]}...\n\n"
-        f"You can now:\n"
-        f"  \u2022 Send money\n"
-        f"  \u2022 Receive money\n"
-        f"  \u2022 Deposit from bank\n"
-        f"  \u2022 Withdraw to bank\n\n"
-        f"Send hi to see the menu.\n\n"
-        f"Reply 0 for Main Menu"
+        f"You now have R100.00 welcome bonus!\n\n"
+        f"Here's what you can do:\n"
+        f"  \u2022 Check your balance\n"
+        f"  \u2022 Send money to anyone\n"
+        f"  \u2022 Deposit from your bank\n"
+        f"  \u2022 Withdraw to your bank\n\n"
+        f"Just tell me what you need!"
     )
 
 
-def format_error(msg):
-    return f"Oops!\n\n{msg}\n\nReply 0 for Main Menu"
+def resp_error(msg):
+    return f"Hmm, something went wrong.\n\n{msg}\n\nTry again or send hi for the menu."
+
+
+def resp_history(pk):
+    return (
+        f"Here's your transaction history:\n\n"
+        f"https://stellar.expert/explorer/testnet/account/{pk}\n\n"
+        f"Anything else?"
+    )
 
 
 # ─── Transactions ───
@@ -364,12 +364,12 @@ def do_balance(phone):
     users = load_users()
     _, user = find_user(users, phone)
     if not user:
-        return format_welcome()
+        return resp_welcome()
     xlm = get_balance(user["public_key"])
     zar = get_zarc_balance(user["public_key"])
     users[phone]["zar_balance"] = zar
     save_users(users)
-    return format_balance(user["name"], zar, xlm)
+    return resp_balance(user["name"], zar, xlm)
 
 
 def do_send(phone, amount_str, to_phone):
@@ -377,22 +377,22 @@ def do_send(phone, amount_str, to_phone):
     _, sender = find_user(users, phone)
     if not sender:
         clear_user_state(phone)
-        return format_welcome()
+        return resp_welcome()
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
-        return format_error("Invalid amount.")
+        return resp_error("I couldn't read that amount. Try something like: 100")
     if not to_phone.startswith("+"):
         to_phone = "+" + to_phone
     _, receiver = find_user(users, to_phone)
     if not receiver:
         clear_user_state(phone)
-        return format_error(f"{to_phone} not registered.")
+        return resp_error(f"{to_phone} isn't on ZakaPay yet.\n\nThey need to register first.")
     zar = get_zarc_balance(sender["public_key"])
     if zar < amount:
         clear_user_state(phone)
-        return format_error(f"Insufficient.\nBalance: R{zar:,.2f}\nSending: R{amount:,.2f}")
+        return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}\nYou're trying to send: R{amount:,.2f}")
     sender_kp = Keypair.from_secret(sender["secret_encrypted"])
     zarc = load_zarc()
     za = Asset(zarc["asset_code"], zarc["issuer_public"])
@@ -410,10 +410,10 @@ def do_send(phone, amount_str, to_phone):
         users[phone]["zar_balance"] = new_bal
         save_users(users)
         clear_user_state(phone)
-        return format_send_success(amount, receiver["name"], to_phone, new_bal, resp["hash"])
+        return resp_send_success(amount, receiver["name"], to_phone, new_bal, resp["hash"])
     except Exception as e:
         clear_user_state(phone)
-        return format_error(f"Failed: {str(e)[:100]}")
+        return resp_error(f"Transfer failed. {str(e)[:100]}")
 
 
 def do_deposit(phone, amount_str):
@@ -421,15 +421,15 @@ def do_deposit(phone, amount_str):
     _, user = find_user(users, phone)
     if not user:
         clear_user_state(phone)
-        return format_welcome()
+        return resp_welcome()
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
-        return format_error("Invalid amount.")
+        return resp_error("I couldn't read that amount.")
     if amount <= 0 or amount > 50000:
         clear_user_state(phone)
-        return format_error("R1 - R50,000 only.")
+        return resp_error("Amount must be between R1 and R50,000.")
     zarc = load_zarc()
     ikp = Keypair.from_secret(zarc["issuer_secret"])
     za = Asset(zarc["asset_code"], zarc["issuer_public"])
@@ -447,10 +447,10 @@ def do_deposit(phone, amount_str):
         users[phone]["zar_balance"] = new_bal
         save_users(users)
         clear_user_state(phone)
-        return format_deposit_success(amount, new_bal, resp["hash"])
+        return resp_deposit_success(amount, new_bal, resp["hash"])
     except Exception as e:
         clear_user_state(phone)
-        return format_error(f"Failed: {str(e)[:100]}")
+        return resp_error(f"Deposit failed. {str(e)[:100]}")
 
 
 def do_withdraw(phone, amount_str):
@@ -458,16 +458,16 @@ def do_withdraw(phone, amount_str):
     _, user = find_user(users, phone)
     if not user:
         clear_user_state(phone)
-        return format_welcome()
+        return resp_welcome()
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
-        return format_error("Invalid amount.")
+        return resp_error("I couldn't read that amount.")
     zar = get_zarc_balance(user["public_key"])
     if zar < amount:
         clear_user_state(phone)
-        return format_error(f"Insufficient.\nBalance: R{zar:,.2f}")
+        return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}")
     zarc = load_zarc()
     ukp = Keypair.from_secret(user["secret_encrypted"])
     za = Asset(zarc["asset_code"], zarc["issuer_public"])
@@ -485,23 +485,23 @@ def do_withdraw(phone, amount_str):
         users[phone]["zar_balance"] = new_bal
         save_users(users)
         clear_user_state(phone)
-        return format_withdraw_success(amount, new_bal, resp["hash"])
+        return resp_withdraw_success(amount, new_bal, resp["hash"])
     except Exception as e:
         clear_user_state(phone)
-        return format_error(f"Failed: {str(e)[:100]}")
+        return resp_error(f"Withdrawal failed. {str(e)[:100]}")
 
 
 def do_register(parts, phone):
     if len(parts) < 3:
-        return format_error("Usage: register YourName 1234")
+        return resp_error("Send: register YourName 1234")
     name = parts[1].title()
     pin = parts[2]
     if len(pin) < 4 or not pin.isdigit():
-        return format_error("PIN must be 4+ digits.")
+        return resp_error("PIN must be at least 4 digits.")
     users = load_users()
     _, existing = find_user(users, phone)
     if existing:
-        return format_error(f"Already registered as {existing['name']}.")
+        return resp_error(f"You already have a wallet, {existing['name']}.")
     kp = Keypair.random()
     try:
         requests.get("https://friendbot.stellar.org", params={"addr": kp.public_key}, timeout=10)
@@ -530,234 +530,149 @@ def do_register(parts, phone):
         save_users(users)
     except Exception as e:
         print(f"ZARC error: {e}")
-    return format_registered(name, kp.public_key)
+    return resp_registered(name, kp.public_key)
 
 
-def do_history(phone):
-    users = load_users()
-    _, user = find_user(users, phone)
-    if not user:
-        return format_welcome()
-    return f"Transaction History\n\nView on Stellar:\nhttps://stellar.expert/explorer/testnet/account/{user['public_key']}\n\nReply 0 for Main Menu"
+# ─── Main Router — AI First ───
 
-
-# ─── Enhanced Rule-Based Parser ───
-
-# South African greetings and common expressions
-GREETINGS = [
-    "hi", "hello", "hey", "start", "hola", "howzit",
-    "yebo", "heita", "sharp", "eish", "awe", "sawubona",
-    "molo", "dumela", "avuxeni", "hallo", "hi there",
-    "good morning", "good afternoon", "good evening",
-    "molo", "unjani", "kunjani", "hoe gaan dit"
-]
-
-BALANCE_WORDS = [
-    "check my balance", "check balance",
-    "balance", "bal", "zar", "rands", "money",
-    "how much", "what do i have", "my money",
-    "check balance", "check my balance", "show balance",
-    "show me my balance", "what's my balance",
-    "how much do i have", "how much money",
-    "check my money", "my balance", "funds"
-]
-
-HISTORY_WORDS = [
-    "history", "transactions", "tx", "statement",
-    "show my transactions", "my transactions",
-    "transaction history", "payment history"
-]
-
-HELP_WORDS = [
-    "help", "what can you do", "commands",
-    "how does this work", "how to use",
-    "what do you do", "options"
-]
-
-
-def rule_parse(msg, phone):
-    """Enhanced rule-based parser. Returns response or None."""
-    lower = msg.lower().strip()
+def handle_message(message, phone):
+    msg = message.strip()
+    lower = msg.lower()
     parts = msg.split()
 
-    # 0 / menu / back
+    # ─── Quick shortcuts (instant, no AI needed) ───
+
+    # 0 / menu / back — always show menu
     if lower in ["0", "menu", "back"]:
         clear_user_state(phone)
         users = load_users()
         _, user = find_user(users, phone)
-        return format_menu(user["name"]) if user else format_welcome()
+        return resp_menu(user["name"]) if user else resp_welcome()
 
-    # State tracking
-    state = get_user_state(phone)
-
-    if state == "awaiting_send":
-        sp = msg.replace(",", "").split()
-        if sp[0].lower() == "send":
-            sp = sp[1:]
-        if len(sp) >= 2:
-            return do_send(phone, sp[0], sp[1])
-        return format_error("Enter amount and phone.\nExample: 100 +27820000002")
-
-    if state == "awaiting_deposit":
-        amt = lower.replace("r", "").replace(",", "").replace("deposit", "").strip()
-        if amt:
-            return do_deposit(phone, amt)
-        return format_error("Enter the amount.\nExample: 500")
-
-    if state == "awaiting_withdraw":
-        amt = lower.replace("r", "").replace(",", "").replace("withdraw", "").strip()
-        if amt:
-            return do_withdraw(phone, amt)
-        return format_error("Enter the amount.\nExample: 500")
-
-    # Greetings
-    if lower in GREETINGS:
-        users = load_users()
-        _, user = find_user(users, phone)
-        return format_menu(user["name"]) if user else format_welcome()
-
-    # Menu numbers
-    if lower == "1":
-        return do_balance(phone)
-    if lower == "2":
-        set_user_state(phone, "awaiting_send")
-        return format_send_prompt()
-    if lower == "3":
-        set_user_state(phone, "awaiting_deposit")
-        return format_deposit_prompt()
-    if lower == "4":
-        set_user_state(phone, "awaiting_withdraw")
-        return format_withdraw_prompt()
-    if lower == "5":
-        return do_history(phone)
-    if lower in ["6", "help"]:
-        return format_help()
-
-    # Register
+    # Register — must be exact command
     if lower.startswith("register"):
         return do_register(parts, phone)
 
-    # Quick commands
-    if lower.startswith("send"):
+    # ─── State tracking (user already told us what to do) ───
+
+    state = get_user_state(phone)
+
+    if state == "awaiting_send_amount_and_phone":
         sp = msg.replace(",", "").split()
-        if len(sp) >= 3:
-            return do_send(phone, sp[1], sp[2])
-        set_user_state(phone, "awaiting_send")
-        return format_send_prompt()
+        if len(sp) >= 2:
+            amount_str = sp[0].replace("r", "").replace("R", "")
+            to_phone = sp[1]
+            return do_send(phone, amount_str, to_phone)
+        elif len(sp) == 1:
+            # They gave amount, now ask for phone
+            set_user_state(phone, "awaiting_send_phone:" + sp[0])
+            return f"R{sp[0]} — who should I send it to?\n\nEnter their phone number:\nExample: +27820000002"
+        return resp_error("Enter amount and phone number.\nExample: 100 +27820000002")
 
-    if lower.startswith("deposit"):
-        import re
-        amounts = re.findall(r'[\d]+(?:\.\d+)?', lower.replace("r", ""))
-        if amounts:
-            return do_deposit(phone, amounts[0])
-        set_user_state(phone, "awaiting_deposit")
-        return format_deposit_prompt()
+    if state and state.startswith("awaiting_send_phone:"):
+        amount = state.split(":")[1]
+        to_phone = msg.strip().replace(" ", "")
+        if not to_phone.startswith("+"):
+            to_phone = "+" + to_phone
+        return do_send(phone, amount, to_phone)
 
-    if lower.startswith("withdraw"):
-        import re
-        amounts = re.findall(r'[\d]+(?:\.\d+)?', lower.replace("r", ""))
-        if amounts:
-            return do_withdraw(phone, amounts[0])
-        set_user_state(phone, "awaiting_withdraw")
-        return format_withdraw_prompt()
+    if state == "awaiting_deposit_amount":
+        amount = lower.replace("r", "").replace(",", "").strip()
+        if amount and amount.replace(".", "").isdigit():
+            return do_deposit(phone, amount)
+        return resp_error("Enter the amount.\nExample: 500")
 
-    # Deposit intent
-    if any(x in lower for x in ["deposit", "put in", "add money", "add funds", "load money", "cash in", "top up", "bank account", "from my bank", "from bank"]):
-        # Check if amount is mentioned
-        import re
-        amounts = re.findall(r'[\d,]+(?:\.\d+)?', lower.replace("r", "").replace(",", ""))
-        if amounts:
-            return do_deposit(phone, amounts[0])
-        set_user_state(phone, "awaiting_deposit")
-        return format_deposit_prompt()
+    if state == "awaiting_withdraw_amount":
+        amount = lower.replace("r", "").replace(",", "").strip()
+        if amount and amount.replace(".", "").isdigit():
+            return do_withdraw(phone, amount)
+        return resp_error("Enter the amount.\nExample: 500")
 
-    # Withdraw intent
-    if any(x in lower for x in ["withdraw", "take out", "cash out", "pull out", "get money", "send to bank"]):
-        amounts = re.findall(r'[\d,]+(?:\.\d+)?', lower.replace("r", "").replace(",", ""))
-        if amounts:
-            return do_withdraw(phone, amounts[0])
-        set_user_state(phone, "awaiting_withdraw")
-        return format_withdraw_prompt()
+    # ─── Menu number shortcuts ───
 
-    # Send intent (natural language)
-    if any(x in lower for x in ["send money", "transfer", "pay "]):
-        amounts = re.findall(r'[\d,]+(?:\.\d+)?', lower.replace("r", "").replace(",", ""))
-        phones = re.findall(r'\+?\d{10,12}', msg)
-        if amounts and phones:
-            return do_send(phone, amounts[0], phones[0])
-        elif amounts:
-            set_user_state(phone, "awaiting_send")
-            return f"I'll send R{amounts[0]} — who should I send it to?\n\nEnter their phone number:\nExample: +27820000002\n\nReply 0 for Main Menu"
-        set_user_state(phone, "awaiting_send")
-        return format_send_prompt()
+    if lower == "1":
+        clear_user_state(phone)
+        return do_balance(phone)
 
-    # Balance keywords
-    for word in BALANCE_WORDS:
-        if word in lower:
-            return do_balance(phone)
+    if lower == "2":
+        set_user_state(phone, "awaiting_send_amount_and_phone")
+        return resp_send_prompt()
 
-    # History keywords
-    for word in HISTORY_WORDS:
-        if word in lower:
-            return do_history(phone)
+    if lower == "3":
+        set_user_state(phone, "awaiting_deposit_amount")
+        return resp_deposit_prompt()
 
-    # Help keywords
-    for word in HELP_WORDS:
-        if word in lower:
-            return format_help()
+    if lower == "4":
+        set_user_state(phone, "awaiting_withdraw_amount")
+        return resp_withdraw_prompt()
 
-    # Nothing matched
-    return None
+    if lower == "5":
+        clear_user_state(phone)
+        users = load_users()
+        _, user = find_user(users, phone)
+        if not user:
+            return resp_welcome()
+        return resp_history(user["public_key"])
 
+    if lower in ["6", "help"]:
+        clear_user_state(phone)
+        return resp_help()
 
-# ─── Main Router ───
+    # ─── Quick commands (exact match, no AI) ───
 
-def handle_message(message, phone):
-    msg = message.strip()
+    if lower in ["hi", "hello", "hey", "start"]:
+        clear_user_state(phone)
+        users = load_users()
+        _, user = find_user(users, phone)
+        return resp_menu(user["name"]) if user else resp_welcome()
 
-    # Try rule-based parser first (fast, free)
-    result = rule_parse(msg, phone)
-    if result:
-        return result
+    if lower in ["balance", "bal"]:
+        clear_user_state(phone)
+        return do_balance(phone)
 
-    # Rules didn't match — try AI
-    print(f"AI fallback for: {msg}")
-    intent = ai_understand(msg)
+    # ─── AI BRAIN — understands everything else ───
+
+    users = load_users()
+    _, user = find_user(users, phone)
+    user_name = user["name"] if user else None
+
+    intent = ai_understand(msg, user_name)
+
     if intent:
         action = intent.get("action", "unknown")
 
         if action == "greeting":
-            users = load_users()
-            _, user = find_user(users, phone)
-            return format_menu(user["name"]) if user else format_welcome()
+            clear_user_state(phone)
+            return resp_menu(user["name"]) if user else resp_welcome()
 
         if action == "balance":
+            clear_user_state(phone)
             return do_balance(phone)
 
         if action == "send":
-            amount = intent.get("amount")
+            amount = intent.get("amount", 0)
             to_phone = intent.get("phone", "")
-            if amount and to_phone:
+            if amount > 0 and to_phone:
                 return do_send(phone, str(amount), to_phone)
-            elif amount:
-                set_user_state(phone, "awaiting_send")
-                return f"I'll send R{amount} — who should I send it to?\n\nEnter their phone number:\nExample: +27820000002\n\nReply 0 for Main Menu"
-            set_user_state(phone, "awaiting_send")
-            return format_send_prompt()
+            elif amount > 0:
+                set_user_state(phone, "awaiting_send_phone:" + str(amount))
+                return f"R{amount} — who should I send it to?\n\nEnter their phone number:\nExample: +27820000002"
+            set_user_state(phone, "awaiting_send_amount_and_phone")
+            return resp_send_prompt()
 
         if action == "deposit":
-            amount = intent.get("amount")
-            if amount:
+            amount = intent.get("amount", 0)
+            if amount > 0:
                 return do_deposit(phone, str(amount))
-            set_user_state(phone, "awaiting_deposit")
-            return format_deposit_prompt()
+            set_user_state(phone, "awaiting_deposit_amount")
+            return resp_deposit_prompt()
 
         if action == "withdraw":
-            amount = intent.get("amount")
-            if amount:
+            amount = intent.get("amount", 0)
+            if amount > 0:
                 return do_withdraw(phone, str(amount))
-            set_user_state(phone, "awaiting_withdraw")
-            return format_withdraw_prompt()
+            set_user_state(phone, "awaiting_withdraw_amount")
+            return resp_withdraw_prompt()
 
         if action == "register":
             name = intent.get("name", "")
@@ -765,21 +680,28 @@ def handle_message(message, phone):
             if name and pin:
                 return do_register(["register", name, pin], phone)
             elif name:
-                return f"Almost there! What PIN?\n\nSend: register {name} 1234"
+                return f"Almost there! What PIN do you want?\n\nSend: register {name} 1234"
+            return resp_error("Send: register YourName 1234")
 
         if action == "help":
-            return format_help()
+            clear_user_state(phone)
+            return resp_help()
 
         if action == "history":
-            return do_history(phone)
+            clear_user_state(phone)
+            if user:
+                return resp_history(user["public_key"])
+            return resp_welcome()
 
-    # Nothing worked
+    # ─── Nothing worked ───
+    clear_user_state(phone)
     return (
-        f"I didn't quite understand that.\n\n"
-        f"Try:\n"
-        f"  \"send R100 to +27820000002\"\n"
-        f"  \"check my balance\"\n"
-        f"  \"deposit 500\"\n\n"
+        f"I'm not sure what you mean.\n\n"
+        f"Just tell me what you need:\n"
+        f"  \"Check my balance\"\n"
+        f"  \"Send money\"\n"
+        f"  \"Deposit 500\"\n"
+        f"  \"Take out 200\"\n\n"
         f"Or send hi for the menu."
     )
 
@@ -813,13 +735,13 @@ def webhook_360dialog():
 @app.route("/health", methods=["GET"])
 def health():
     ai_status = "connected" if GROQ_API_KEY else "no_key"
-    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "3.1", "ai": ai_status}), 200
+    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "4.0", "ai": ai_status}), 200
 
 
 @app.route("/", methods=["GET"])
 def home():
     ai_status = "connected" if GROQ_API_KEY else "no_key"
-    return jsonify({"service": "ZakaPay API", "version": "3.1", "status": "running", "ai": ai_status}), 200
+    return jsonify({"service": "ZakaPay API", "version": "4.0", "status": "running", "ai": ai_status}), 200
 
 
 if __name__ == "__main__":

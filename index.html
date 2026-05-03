@@ -3,222 +3,432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZakaPay — Coming Soon</title>
-    <meta name="description" content="Send money for R2.50. No app. No bank account. Just WhatsApp. Sign up for early access.">
+    <title>ZakaPay — Stop Paying to Move Your Own Money</title>
+    <meta name="description" content="Send money home instantly on WhatsApp. R2.50 flat fee. No app. No queues. No bank account needed.">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800;900&family=DM+Serif+Display&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --surface: #0A1A10;
-            --gold: #FFD700;
-            --alert-red: #FF4444;
-            --bg: #060E08;
-            --bg-elevated: #0D1F12;
-            --bg-card: #0F2518;
-            --green-primary: #00E676;
+            --bg: #050B07;
+            --bg-card: #0C1A11;
+            --bg-elevated: #111F16;
+            --green: #00E676;
             --green-dark: #00C853;
-            --green-glow: #69F0AE;
-            --text-primary: #E8F5E9;
+            --green-glow: rgba(0, 230, 118, 0.15);
+            --gold: #FFD700;
+            --red: #FF4444;
+            --text: #E8F5E9;
             --text-secondary: #A5D6A7;
             --text-muted: #5C8A5E;
             --border: rgba(0, 230, 118, 0.12);
-            --border-glow: rgba(0, 230, 118, 0.3);
-            --r-pill: 100px;
         }
 
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; overflow-x: hidden; }
 
         body::before {
             content: '';
-            position: fixed;
-            inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 9999;
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+            pointer-events: none; z-index: 9999;
         }
 
-        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 20px 0; background: rgba(6, 14, 8, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
-        nav .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.5rem; color: var(--text-primary); text-decoration: none; }
-        .logo .bolt { color: var(--green-primary); }
-        .nav-coming { font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green-primary); padding: 8px 20px; border: 1px solid var(--border-glow); border-radius: var(--r-pill); }
+        .container { max-width: 800px; margin: 0 auto; padding: 0 24px; }
 
-        .main { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 100vh; position: relative; padding: 120px 24px 80px; }
-        .main::before { content: ''; position: absolute; top: -100px; right: -200px; width: 700px; height: 700px; background: radial-gradient(circle, rgba(0, 230, 118, 0.06) 0%, transparent 70%); pointer-events: none; }
-        .main::after { content: ''; position: absolute; bottom: -100px; left: -200px; width: 500px; height: 500px; background: radial-gradient(circle, rgba(255, 215, 0, 0.04) 0%, transparent 70%); pointer-events: none; }
+        /* ═══ NAV ═══ */
+        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 16px 0; background: rgba(5, 11, 7, 0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+        nav .container { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.4rem; color: var(--text); text-decoration: none; }
+        .logo .bolt { color: var(--green); }
+        .nav-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--bg); background: var(--green); padding: 5px 14px; border-radius: 100px; }
 
-        .content { text-align: center; position: relative; z-index: 1; max-width: 640px; }
+        /* ═══ HERO ═══ */
+        .hero { padding: 120px 0 60px; text-align: center; }
+        .hero-tag { font-size: 12px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green); margin-bottom: 24px; animation: fadeUp 0.6s ease forwards; }
+        .hero h1 { font-family: 'Outfit', sans-serif; font-size: clamp(2.2rem, 7vw, 3.5rem); font-weight: 900; line-height: 1.08; margin-bottom: 20px; animation: fadeUp 0.6s ease 0.1s forwards; opacity: 0; }
+        .hero h1 .accent { color: var(--green); }
+        .hero h1 .red { color: var(--red); }
+        .hero .subtitle { font-size: 18px; font-weight: 500; color: var(--text-secondary); max-width: 520px; margin: 0 auto 40px; animation: fadeUp 0.6s ease 0.2s forwards; opacity: 0; }
 
-        .z-bolt { width: 80px; height: 80px; margin: 0 auto 40px; animation: fadeInUp 0.6s ease forwards; }
-        .z-bolt svg { width: 100%; height: 100%; }
+        /* ═══ MATH BLOCK ═══ */
+        .math-block { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; max-width: 480px; margin: 0 auto 40px; animation: fadeUp 0.6s ease 0.3s forwards; opacity: 0; }
+        .math-title { font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 20px; }
+        .math-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .math-row:last-child { border-bottom: none; }
+        .math-label { font-size: 15px; font-weight: 400; color: var(--text-secondary); }
+        .math-value { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; }
+        .math-value.red { color: var(--red); }
+        .math-value.green { color: var(--green); }
+        .math-divider { height: 2px; background: var(--border); margin: 8px 0; }
+        .math-vs { text-align: center; padding: 16px 0; font-size: 12px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text-muted); }
 
-        .coming-label { font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green-primary); margin-bottom: 24px; animation: fadeInUp 0.6s ease 0.1s forwards; opacity: 0; }
+        /* ═══ CTA BUTTONS ═══ */
+        .cta-group { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 16px; animation: fadeUp 0.6s ease 0.4s forwards; opacity: 0; }
+        .cta-whatsapp { display: inline-flex; align-items: center; gap: 12px; padding: 18px 36px; background: #25D366; color: #fff; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 17px; border: none; border-radius: 100px; cursor: pointer; text-decoration: none; transition: all 0.3s ease; }
+        .cta-whatsapp:hover { background: #20bd5a; box-shadow: 0 0 40px rgba(37, 211, 102, 0.3); transform: translateY(-2px); }
+        .cta-whatsapp svg { width: 22px; height: 22px; fill: white; }
+        .cta-divider { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 
-        h1 { font-family: 'Outfit', sans-serif; font-size: clamp(2.5rem, 8vw, 4rem); font-weight: 900; line-height: 1.05; margin-bottom: 24px; animation: fadeInUp 0.6s ease 0.2s forwards; opacity: 0; }
-        h1 .accent { color: var(--green-primary); }
-
-        .subtitle { font-size: 18px; font-weight: 600; color: var(--text-secondary); max-width: 480px; margin: 0 auto 48px; animation: fadeInUp 0.6s ease 0.3s forwards; opacity: 0; }
-
-        .whatsapp-cta { display: inline-flex; align-items: center; gap: 12px; padding: 18px 36px; background: #25D366; color: #fff; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; border: none; border-radius: var(--r-pill); cursor: pointer; text-decoration: none; transition: all 0.3s ease; margin-bottom: 32px; animation: fadeInUp 0.6s ease 0.35s forwards; opacity: 0; }
-        .whatsapp-cta:hover { background: #20bd5a; box-shadow: 0 0 40px rgba(37, 211, 102, 0.3); transform: translateY(-2px); }
-        .whatsapp-cta svg { width: 24px; height: 24px; fill: white; }
-
-        .divider { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 24px; animation: fadeInUp 0.6s ease 0.4s forwards; opacity: 0; }
-
-        .waitlist-form { display: flex; flex-direction: column; gap: 12px; max-width: 400px; margin: 0 auto 24px; animation: fadeInUp 0.6s ease 0.45s forwards; opacity: 0; }
-        .waitlist-form input { padding: 16px 24px; background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--r-pill); color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 400; outline: none; transition: border-color 0.3s ease; }
+        /* ═══ WAITLIST FORM ═══ */
+        .waitlist-form { display: flex; flex-direction: column; gap: 10px; max-width: 380px; margin: 0 auto 20px; animation: fadeUp 0.6s ease 0.45s forwards; opacity: 0; }
+        .waitlist-form input { padding: 14px 22px; background: var(--bg-card); border: 2px solid var(--border); border-radius: 100px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; outline: none; transition: border-color 0.3s; }
         .waitlist-form input::placeholder { color: var(--text-muted); }
-        .waitlist-form input:focus { border-color: var(--green-primary); box-shadow: 0 0 20px rgba(0, 230, 118, 0.1); }
-        .waitlist-form button { padding: 16px 32px; background: var(--green-primary); color: var(--surface); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 16px; border: none; border-radius: var(--r-pill); cursor: pointer; transition: all 0.3s ease; }
-        .waitlist-form button:hover { background: var(--green-glow); box-shadow: 0 0 40px rgba(0, 230, 118, 0.3); transform: translateY(-2px); }
+        .waitlist-form input:focus { border-color: var(--green); }
+        .waitlist-form button { padding: 14px 28px; background: var(--green); color: var(--bg); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 15px; border: none; border-radius: 100px; cursor: pointer; transition: all 0.3s; }
+        .waitlist-form button:hover { background: var(--green-glow); transform: translateY(-2px); }
+        .form-note { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 60px; animation: fadeUp 0.6s ease 0.5s forwards; opacity: 0; }
+        .success-message { display: none; text-align: center; padding: 28px; background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.2); border-radius: 20px; max-width: 380px; margin: 0 auto 20px; }
+        .success-message h3 { font-size: 22px; font-weight: 800; color: var(--green); margin-bottom: 6px; }
+        .success-message p { font-size: 15px; color: var(--text-secondary); }
 
-        .form-note { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-bottom: 48px; animation: fadeInUp 0.6s ease 0.5s forwards; opacity: 0; }
+        /* ═══ QUOTE SECTION ═══ */
+        .quotes { padding: 60px 0; }
+        .quotes h2 { font-family: 'DM Serif Display', serif; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 400; text-align: center; margin-bottom: 48px; color: var(--text); }
+        .quote-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 28px; margin-bottom: 20px; position: relative; }
+        .quote-card::before { content: '\201C'; font-family: 'DM Serif Display', serif; font-size: 60px; color: var(--green); opacity: 0.3; position: absolute; top: 8px; left: 20px; line-height: 1; }
+        .quote-text { font-size: 16px; font-weight: 400; color: var(--text); line-height: 1.7; padding-left: 32px; margin-bottom: 16px; font-style: italic; }
+        .quote-author { font-size: 13px; font-weight: 700; color: var(--green); padding-left: 32px; }
 
-        .features-preview { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding-top: 48px; border-top: 1px solid var(--border); animation: fadeInUp 0.6s ease 0.6s forwards; opacity: 0; }
-        .feature-item { text-align: center; max-width: 160px; }
-        .feature-item .icon { font-size: 32px; margin-bottom: 12px; }
-        .feature-item .title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-        .feature-item .desc { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+        /* ═══ PAIN POINTS ═══ */
+        .pain-section { padding: 60px 0; }
+        .pain-section h2 { font-family: 'DM Serif Display', serif; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 400; text-align: center; margin-bottom: 12px; }
+        .pain-section .section-sub { font-size: 15px; color: var(--text-muted); text-align: center; margin-bottom: 40px; }
+        .pain-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .pain-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+        .pain-card .icon { font-size: 28px; margin-bottom: 12px; }
+        .pain-card .title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+        .pain-card .desc { font-size: 13px; font-weight: 400; color: var(--text-muted); line-height: 1.6; }
 
-        .success-message { display: none; text-align: center; padding: 32px; background: rgba(0, 230, 118, 0.08); border: 1px solid rgba(0, 230, 118, 0.2); border-radius: 24px; max-width: 400px; margin: 0 auto 24px; }
-        .success-message h3 { font-size: 24px; font-weight: 800; color: var(--green-primary); margin-bottom: 8px; }
-        .success-message p { font-size: 16px; color: var(--text-secondary); }
+        /* ═══ HOW IT WORKS ═══ */
+        .how-section { padding: 60px 0; }
+        .how-section h2 { font-family: 'DM Serif Display', serif; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 400; text-align: center; margin-bottom: 40px; }
+        .steps { display: flex; flex-direction: column; gap: 24px; max-width: 500px; margin: 0 auto; }
+        .step { display: flex; gap: 20px; align-items: flex-start; }
+        .step-num { width: 44px; height: 44px; min-width: 44px; background: var(--green); color: var(--bg); font-weight: 900; font-size: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .step-content .step-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .step-content .step-desc { font-size: 14px; color: var(--text-muted); }
 
+        /* ═══ FEATURES ═══ */
+        .features { padding: 60px 0; }
+        .features h2 { font-family: 'DM Serif Display', serif; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 400; text-align: center; margin-bottom: 40px; }
+        .feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .feat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; }
+        .feat-card .icon { font-size: 32px; margin-bottom: 12px; }
+        .feat-card .title { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+        .feat-card .desc { font-size: 13px; color: var(--text-muted); }
+
+        /* ═══ TRUST ═══ */
+        .trust { padding: 60px 0; text-align: center; }
+        .trust-badge { display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 100px; margin-bottom: 16px; }
+        .trust-badge .icon { font-size: 20px; }
+        .trust-badge .text { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+        .trust-note { font-size: 13px; color: var(--text-muted); max-width: 400px; margin: 0 auto; }
+
+        /* ═══ FINAL CTA ═══ */
+        .final-cta { padding: 60px 0 80px; text-align: center; }
+        .final-cta h2 { font-family: 'DM Serif Display', serif; font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 400; margin-bottom: 12px; }
+        .final-cta .subtitle { font-size: 15px; color: var(--text-muted); margin-bottom: 32px; }
+
+        /* ═══ FOOTER ═══ */
         footer { padding: 40px 0; border-top: 1px solid var(--border); text-align: center; }
-        footer .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-        .footer-links { display: flex; justify-content: center; gap: 32px; margin-bottom: 16px; flex-wrap: wrap; }
-        .footer-links a { font-size: 13px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: color 0.3s ease; }
-        .footer-links a:hover { color: var(--green-primary); }
-        .footer-copy { font-size: 13px; color: var(--text-muted); }
+        .footer-links { display: flex; justify-content: center; gap: 28px; margin-bottom: 16px; flex-wrap: wrap; }
+        .footer-links a { font-size: 12px; font-weight: 600; color: var(--text-muted); text-decoration: none; transition: color 0.3s; }
+        .footer-links a:hover { color: var(--green); }
+        .footer-copy { font-size: 12px; color: var(--text-muted); }
 
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        /* ═══ ANIMATIONS ═══ */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 
+        /* ═══ MOBILE ═══ */
         @media (max-width: 640px) {
-            .features-preview { gap: 24px; }
-            .feature-item { max-width: 120px; }
+            .pain-grid, .feat-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 
+    <!-- NAV -->
     <nav>
         <div class="container">
             <a href="#" class="logo">Zaka<span class="bolt">Pay</span></a>
-            <span class="nav-coming">Coming Soon</span>
+            <span class="nav-badge">Coming Soon</span>
         </div>
     </nav>
 
-    <main class="main">
-        <div class="content">
-
-            <div class="z-bolt">
-                <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M52 8L20 44H38L28 72L60 36H42L52 8Z" fill="#00E676" stroke="#00E676" stroke-width="3" stroke-linejoin="round"/>
-                </svg>
-            </div>
-
-            <div class="coming-label">Coming Soon</div>
-
+    <!-- HERO -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-tag">Built in South Africa. For South Africa.</div>
             <h1>
-                Banking<br>
-                Without<br>
-                A <span class="accent">Bank</span>
+                Stop Paying to Move<br>
+                Your <span class="accent">Own Money.</span>
             </h1>
-
             <p class="subtitle">
-                Send money for R2.50. Cash in at the spaza.
-                No app. No bank account. Just WhatsApp.
+                Send money home instantly on WhatsApp. R2.50 flat fee. No app. No queues. No bank account needed.
             </p>
 
-            <a href="https://wa.me/message/CCSJNFTTNIHSA1" class="whatsapp-cta" target="_blank">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
-                Message ZakaPay on WhatsApp
-            </a>
+            <!-- MATH BLOCK -->
+            <div class="math-block">
+                <div class="math-title">The real cost of sending R500 home</div>
 
-            <div class="divider">or join the waitlist</div>
+                <div class="math-row">
+                    <span class="math-label">Bank transfer fee</span>
+                    <span class="math-value red">-R60</span>
+                </div>
+                <div class="math-row">
+                    <span class="math-label">Shop cash-out fee</span>
+                    <span class="math-value red">-R20</span>
+                </div>
+                <div class="math-row">
+                    <span class="math-label">Time to arrive</span>
+                    <span class="math-value red">2-3 days</span>
+                </div>
+                <div class="math-divider"></div>
+                <div class="math-row">
+                    <span class="math-label" style="font-weight:700; color:var(--text)">They receive</span>
+                    <span class="math-value red">R420</span>
+                </div>
+
+                <div class="math-vs">vs ZakaPay</div>
+
+                <div class="math-row">
+                    <span class="math-label">ZakaPay fee</span>
+                    <span class="math-value green">R2.50</span>
+                </div>
+                <div class="math-row">
+                    <span class="math-label">Time to arrive</span>
+                    <span class="math-value green">5 seconds</span>
+                </div>
+                <div class="math-divider"></div>
+                <div class="math-row">
+                    <span class="math-label" style="font-weight:700; color:var(--text)">They receive</span>
+                    <span class="math-value green">R497.50</span>
+                </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="cta-group">
+                <a href="https://wa.me/message/CCSJNFTTNIHSA1" class="cta-whatsapp" target="_blank">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Message ZakaPay on WhatsApp
+                </a>
+                <span class="cta-divider">or join the waitlist</span>
+            </div>
 
             <form class="waitlist-form" action="https://formspree.io/f/xrejbkoz" method="POST" id="waitlistForm">
                 <input type="text" name="name" placeholder="Your name" required>
                 <input type="tel" name="phone" placeholder="+27 82 000 0000" required>
                 <button type="submit">Join the Waitlist</button>
             </form>
-
             <p class="form-note">No spam. We WhatsApp you when we launch.</p>
 
             <div class="success-message" id="successMessage">
                 <h3>You're on the list!</h3>
-                <p>We'll WhatsApp you when ZakaPay launches. Welcome to the future of money.</p>
+                <p>We'll WhatsApp you when ZakaPay launches.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- QUOTES -->
+    <section class="quotes">
+        <div class="container">
+            <h2>The people we built this for</h2>
+
+            <div class="quote-card">
+                <p class="quote-text">I work for R150 a day. When I send R500 home to my mother in the Eastern Cape, the bank takes R60 and the shop takes another R20. That is two days of my transport money just to move my own cash.</p>
+                <p class="quote-author">— Domestic Worker, Khayelitsha</p>
             </div>
 
-            <div class="features-preview">
-                <div class="feature-item">
+            <div class="quote-card">
+                <p class="quote-text">The bank is for people with suits. When I go there to ask why my money is 'pending,' they look at me like I am wasting their time. On WhatsApp, I am the boss.</p>
+                <p class="quote-author">— Spaza Shop Owner, Philippi</p>
+            </div>
+
+            <div class="quote-card">
+                <p class="quote-text">I don't want 'crypto.' I want Rands. I want to know that if I send 200, my sister gets 200. Not 180.</p>
+                <p class="quote-author">— Street Vendor, Cape Town CBD</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- PAIN POINTS -->
+    <section class="pain-section">
+        <div class="container">
+            <h2>The system is broken</h2>
+            <p class="section-sub">We spoke to 20 people. Here's what they told us.</p>
+
+            <div class="pain-grid">
+                <div class="pain-card">
+                    <div class="icon">&#128176;</div>
+                    <div class="title">The Poverty Premium</div>
+                    <div class="desc">It costs more to be poor. Losing R80 in fees on a R500 transfer is 16% of your money gone. Just to move it.</div>
+                </div>
+                <div class="pain-card">
+                    <div class="icon">&#9200;</div>
+                    <div class="title">The Friday Lag</div>
+                    <div class="desc">Send money Friday. It arrives Tuesday. The electricity is out. The fridge is empty. The kids are hungry.</div>
+                </div>
+                <div class="pain-card">
+                    <div class="icon">&#128241;</div>
+                    <div class="title">App Fatigue</div>
+                    <div class="desc">No space on your phone for another 80MB banking app. No data to download it. No patience for FICA documents.</div>
+                </div>
+                <div class="pain-card">
+                    <div class="icon">&#128694;</div>
+                    <div class="title">The ATM Safety Tax</div>
+                    <div class="desc">Walking with cash to an ATM makes you a target. Standing in a queue at Shoprite costs you half your Saturday.</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="how-section">
+        <div class="container">
+            <h2>How ZakaPay works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Send "hi" on WhatsApp</div>
+                        <div class="step-desc">No app to download. No forms to fill. Just WhatsApp — the app you already use every day.</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Create your wallet in 10 seconds</div>
+                        <div class="step-desc">Send: register YourName 1234. That's it. No FICA. No proof of address. No bank account needed.</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Send money to anyone</div>
+                        <div class="step-desc">Just tell ZakaPay what you want. "Send R200 to my mom." Done in 5 seconds. R2.50 flat fee.</div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <div class="step-title">Cash in and out at the spaza</div>
+                        <div class="step-desc">Your neighborhood spaza shop is your bank branch. 200,000+ locations across South Africa.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features">
+        <div class="container">
+            <h2>Why ZakaPay is different</h2>
+            <div class="feat-grid">
+                <div class="feat-card">
                     <div class="icon">&#128222;</div>
                     <div class="title">Just WhatsApp</div>
-                    <div class="desc">No app needed</div>
+                    <div class="desc">No app download. No data bundle needed. Works on any phone.</div>
                 </div>
-                <div class="feature-item">
-                    <div class="icon">&#128184;</div>
+                <div class="feat-card">
+                    <div class="icon">&#128178;</div>
                     <div class="title">R2.50 Flat Fee</div>
-                    <div class="desc">No hidden costs</div>
+                    <div class="desc">Send R100 or R10,000. Same R2.50. No percentages. No surprises.</div>
                 </div>
-                <div class="feature-item">
+                <div class="feat-card">
+                    <div class="icon">&#9889;</div>
+                    <div class="title">5 Seconds</div>
+                    <div class="desc">Not 2-3 days. Not "pending." Money arrives in 5 seconds.</div>
+                </div>
+                <div class="feat-card">
                     <div class="icon">&#127978;</div>
-                    <div class="title">Spaza Shops</div>
-                    <div class="desc">200,000+ locations</div>
+                    <div class="title">200,000+ Spazas</div>
+                    <div class="desc">Your neighborhood spaza is your bank branch. Cash in. Cash out.</div>
                 </div>
-                <div class="feature-item">
+                <div class="feat-card">
                     <div class="icon">&#127758;</div>
                     <div class="title">Cross-Border</div>
-                    <div class="desc">R10 to Tanzania</div>
+                    <div class="desc">Send money to Tanzania, Zimbabwe, Mozambique. R10 flat fee.</div>
+                </div>
+                <div class="feat-card">
+                    <div class="icon">&#128274;</div>
+                    <div class="title">Your Money, Always</div>
+                    <div class="desc">Verified on the global ledger. No "system is down." No frozen accounts.</div>
                 </div>
             </div>
-
         </div>
-    </main>
+    </section>
 
+    <!-- TRUST -->
+    <section class="trust">
+        <div class="container">
+            <div class="trust-badge">
+                <span class="icon">&#128274;</span>
+                <span class="text">Verified on the Global Ledger. Your money is yours, 24/7.</span>
+            </div>
+            <p class="trust-note">Every transaction is recorded on a public ledger that anyone can verify. No hidden fees. No "pending." No "the system is down."</p>
+        </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="final-cta">
+        <div class="container">
+            <h2>Send R200. They get R197.50.<br>Not R120.</h2>
+            <p class="subtitle">Join the waitlist. We WhatsApp you when we launch.</p>
+
+            <form class="waitlist-form" action="https://formspree.io/f/xrejbkoz" method="POST" id="waitlistForm2">
+                <input type="text" name="name" placeholder="Your name" required>
+                <input type="tel" name="phone" placeholder="+27 82 000 0000" required>
+                <button type="submit">Join the Waitlist</button>
+            </form>
+
+            <div class="success-message" id="successMessage2">
+                <h3>You're on the list!</h3>
+                <p>We'll WhatsApp you when ZakaPay launches.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
     <footer>
         <div class="container">
             <div class="footer-links">
-                <a href="mailto:ngeli@zakapay.africa">&#9993; ngeli@zakapay.africa</a>
+                <a href="mailto:ngeli@zakapay.africa">ngeli@zakapay.africa</a>
                 <a href="https://wa.me/message/CCSJNFTTNIHSA1" target="_blank">WhatsApp</a>
                 <a href="https://github.com/NgeliMrasi/zakapay" target="_blank">GitHub</a>
                 <a href="https://stellar.expert/explorer/testnet/" target="_blank">Stellar Explorer</a>
             </div>
             <div class="footer-copy">
-                &copy; 2026 ZakaPay Africa. Banking without a bank. Built on Stellar. Made in South Africa.
+                &copy; 2026 ZakaPay Africa. Made in South Africa. For South Africa.
             </div>
         </div>
     </footer>
 
     <script>
-        document.getElementById('waitlistForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const form = this;
-            const formData = new FormData(form);
+        // Handle both forms
+        ['waitlistForm', 'waitlistForm2'].forEach(formId => {
+            document.getElementById(formId).addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = this;
+                const formData = new FormData(form);
+                const successId = formId === 'waitlistForm' ? 'successMessage' : 'successMessage2';
 
-            fetch('https://formspree.io/f/xrejbkoz', {
-                method: 'POST',
-                body: formData,
-                headers: { 'Accept': 'application/json' }
-            })
-            .then(response => {
-                form.style.display = 'none';
-                document.querySelector('.divider').style.display = 'none';
-                document.querySelector('.form-note').style.display = 'none';
-                document.getElementById('successMessage').style.display = 'block';
-            })
-            .catch(() => {
-                form.style.display = 'none';
-                document.querySelector('.divider').style.display = 'none';
-                document.querySelector('.form-note').style.display = 'none';
-                document.getElementById('successMessage').style.display = 'block';
+                fetch('https://formspree.io/f/xrejbkoz', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' }
+                })
+                .then(() => {
+                    form.style.display = 'none';
+                    document.getElementById(successId).style.display = 'block';
+                })
+                .catch(() => {
+                    form.style.display = 'none';
+                    document.getElementById(successId).style.display = 'block';
+                });
             });
         });
     </script>

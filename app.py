@@ -480,6 +480,7 @@ def do_send(phone, amount_str, to_phone):
             )
             tx.sign(sender_kp)
             resp = server.submit_transaction(tx)
+            time.sleep(3)
             new_bal = get_zarc_balance(sender["public_key"])
             users[phone]["zar_balance"] = new_bal
             save_users(users)
@@ -538,6 +539,10 @@ def do_send(phone, amount_str, to_phone):
                     entry["escrow_public"] = escrow_kp.public_key
             save_escrow(escrow_data)
 
+            # Wait for ledger to close
+            time.sleep(3)
+
+            # Verify the balance changed
             new_bal = get_zarc_balance(sender["public_key"])
             users[phone]["zar_balance"] = new_bal
             save_users(users)
@@ -577,6 +582,7 @@ def do_deposit(phone, amount_str):
         )
         tx.sign(ikp)
         resp = server.submit_transaction(tx)
+        time.sleep(3)
         new_bal = get_zarc_balance(user["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)
@@ -615,6 +621,7 @@ def do_withdraw(phone, amount_str):
         )
         tx.sign(ukp)
         resp = server.submit_transaction(tx)
+        time.sleep(3)
         new_bal = get_zarc_balance(user["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)

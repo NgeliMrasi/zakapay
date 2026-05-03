@@ -474,7 +474,7 @@ def do_send(phone, amount_str, to_phone):
             acc = server.load_account(sender_kp.public_key)
             tx = (
                 TransactionBuilder(acc, NETWORK, 100)
-                .add_text_memo(f"ZakaPay:R{amount:.0f} to {receiver['name']}")
+                .add_text_memo(f"ZP:{amount:.0f} to {receiver['name'][:10]}")
                 .append_payment_op(destination=receiver["public_key"], amount=f"{amount:.2f}", asset=za)
                 .set_timeout(30).build()
             )
@@ -514,7 +514,7 @@ def do_send(phone, amount_str, to_phone):
             sender_acc = server.load_account(sender_kp.public_key)
             tx = (
                 TransactionBuilder(sender_acc, NETWORK, 100)
-                .add_text_memo(f"ZakaPay:Escrow:R{amount:.0f} for {to_phone}")
+                .add_text_memo(f"ZP:Escrow:{amount:.0f}")
                 .append_payment_op(destination=escrow_kp.public_key, amount=f"{amount:.2f}", asset=za)
                 .set_timeout(30).build()
             )
@@ -571,7 +571,7 @@ def do_deposit(phone, amount_str):
         ia = server.load_account(ikp.public_key)
         tx = (
             TransactionBuilder(ia, NETWORK, 100)
-            .add_text_memo(f"ZakaPay:Deposit:R{amount:.0f}")
+            .add_text_memo(f"ZP:Deposit:{amount:.0f}")
             .append_payment_op(destination=user["public_key"], amount=f"{amount:.2f}", asset=za)
             .set_timeout(30).build()
         )
@@ -609,7 +609,7 @@ def do_withdraw(phone, amount_str):
         acc = server.load_account(ukp.public_key)
         tx = (
             TransactionBuilder(acc, NETWORK, 100)
-            .add_text_memo(f"ZakaPay:Withdraw:R{amount:.0f}")
+            .add_text_memo(f"ZP:Withdraw:{amount:.0f}")
             .append_payment_op(destination=zarc["distribution_public"], amount=f"{amount:.2f}", asset=za)
             .set_timeout(30).build()
         )
@@ -657,7 +657,7 @@ def do_register(parts, phone):
         server.submit_transaction(tx)
         ikp = Keypair.from_secret(zarc["issuer_secret"])
         ia = server.load_account(ikp.public_key)
-        tx = TransactionBuilder(ia, NETWORK, 100).add_text_memo("ZakaPay:Welcome").append_payment_op(destination=kp.public_key, amount="100.00", asset=za).set_timeout(30).build()
+        tx = TransactionBuilder(ia, NETWORK, 100).add_text_memo("ZP:Welcome").append_payment_op(destination=kp.public_key, amount="100.00", asset=za).set_timeout(30).build()
         tx.sign(ikp)
         server.submit_transaction(tx)
         users[phone]["zar_balance"] = 100
@@ -683,7 +683,7 @@ def do_register(parts, phone):
                         escrow_acc = server.load_account(escrow_kp.public_key)
                         tx = (
                             TransactionBuilder(escrow_acc, NETWORK, 100)
-                            .add_text_memo(f"ZakaPay:Claimed from {detail['from_name']}")
+                            .add_text_memo(f"ZP:Claimed")
                             .append_payment_op(destination=kp.public_key, amount=f"{escrow_balance:.2f}", asset=za)
                             .set_timeout(30).build()
                         )

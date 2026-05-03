@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-ZakaPay v4.0 — AI-First WhatsApp Payments
-Natural language is the primary interface.
-Users chat like they're talking to a person.
+ZakaPay v4.1 — AI-First + Escrow for Unregistered Recipients
+Send money to anyone. They collect when they register.
 """
 
 import os
@@ -22,6 +21,7 @@ HORIZON = "https://horizon-testnet.stellar.org"
 NETWORK = Network.TESTNET_NETWORK_PASSPHRASE
 DB_FILE = "users.json"
 STATE_FILE = "user_states.json"
+ESCROW_FILE = "escrow.json"
 server = Server(horizon_url=HORIZON)
 
 ZARC_EMBEDDED = {
@@ -55,7 +55,6 @@ def load_env():
 # ─── AI Brain ───
 
 def ai_understand(user_message, user_name=None):
-    """AI understands ANY natural language message."""
     api_key = load_env()
     if not api_key:
         return None
@@ -70,42 +69,32 @@ Message: "{user_message}"
 
 Possible actions:
 {{"action":"greeting"}} — hi, yebo, heita, howzit, hello, hey, sawubona, dumela, what's up
-{{"action":"balance"}} — check balance, how much do I have, show my money, what's my balance, check my funds
+{{"action":"balance"}} — check balance, how much do I have, show my money, what's my balance
 {{"action":"send","amount":<number>,"phone":"<phone or empty>"}} — send money, transfer, pay someone
-{{"action":"deposit","amount":<number>}} — deposit, put money in, load money, add funds, cash in, top up, put in, bank to wallet
-{{"action":"withdraw","amount":<number>}} — withdraw, take out, cash out, pull out, get money out, send to bank, wallet to bank
-{{"action":"register","name":"<name>","pin":"<pin or empty>"}} — create account, sign up, register, open wallet
-{{"action":"help"}} — what can you do, help, how does this work, commands, options, what do you do
-{{"action":"history"}} — transactions, history, statement, past payments, show my transactions
+{{"action":"deposit","amount":<number>}} — deposit, put money in, load money, add funds, cash in, top up
+{{"action":"withdraw","amount":<number>}} — withdraw, take out, cash out, pull out, get money out
+{{"action":"register","name":"<name>","pin":"<pin or empty>"}} — create account, sign up, register
+{{"action":"help"}} — what can you do, help, how does this work
+{{"action":"history"}} — transactions, history, statement, past payments
 
 Rules:
 - "take out 1000" → {{"action":"withdraw","amount":1000}}
-- "I want to take out a thousand rand" → {{"action":"withdraw","amount":1000}}
-- "deposit from my bank" → {{"action":"deposit","amount":0}} (amount 0 means not specified)
+- "deposit from my bank" → {{"action":"deposit","amount":0}}
 - "send R500 to +27820000001" → {{"action":"send","amount":500,"phone":"+27820000001"}}
-- "send 100 bucks to my friend" → {{"action":"send","amount":100,"phone":""}}
+- "send money to Mamakhe" → {{"action":"send","amount":0,"phone":""}}
 - "check my balance" → {{"action":"balance"}}
 - "how much money do I have" → {{"action":"balance"}}
-- "I need to send money" → {{"action":"send","amount":0,"phone":""}}
-- "can I put in some cash" → {{"action":"deposit","amount":0}}
-- "withdrawal" → {{"action":"withdraw","amount":0}}
-- "show me what I've spent" → {{"action":"history"}}
-- "what is zakapay" → {{"action":"help"}}
-- "register as Sipho pin 5678" → {{"action":"register","name":"Sipho","pin":"5678"}}
 
 Return ONLY the JSON. Nothing else."""
 
     try:
         resp = requests.post(
             GROQ_URL,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            },
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
             json={
                 "model": "llama-3.1-8b-instant",
                 "messages": [
-                    {"role": "system", "content": "You are a JSON parser for a payment app. Return only valid JSON. No explanation. No markdown."},
+                    {"role": "system", "content": "Return only valid JSON. No explanation."},
                     {"role": "user", "content": prompt}
                 ],
                 "temperature": 0.1,
@@ -117,7 +106,6 @@ Return ONLY the JSON. Nothing else."""
         if resp.status_code == 200:
             data = resp.json()
             text = data["choices"][0]["message"]["content"].strip()
-            # Clean markdown
             if text.startswith("```"):
                 text = text.split("\n", 1)[1] if "\n" in text else text[3:]
             if text.endswith("```"):
@@ -126,17 +114,17 @@ Return ONLY the JSON. Nothing else."""
             if text.startswith("json"):
                 text = text[4:].strip()
             intent = json.loads(text)
-            print(f"AI understood: {intent}")
+            print(f"AI: {intent}")
             return intent
         else:
-            print(f"AI error: {resp.status_code} - {resp.text[:200]}")
+            print(f"AI error: {resp.status_code}")
             return None
     except Exception as e:
         print(f"AI error: {e}")
         return None
 
 
-# ─── State Management ───
+# ─── State ───
 
 def load_state():
     try:
@@ -165,6 +153,60 @@ def clear_user_state(phone):
     states = load_state()
     states.pop(phone, None)
     save_state(states)
+
+
+# ─── Escrow (Pending Payments) ───
+
+def load_escrow():
+    try:
+        with open(ESCROW_FILE, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+
+def save_escrow(escrow):
+    with open(ESCROW_FILE, "w") as f:
+        json.dump(escrow, f, indent=2)
+
+
+def add_escrow(to_phone, from_name, from_phone, amount, tx_hash):
+    """Hold money for unregistered recipient."""
+    escrow = load_escrow()
+    if to_phone not in escrow:
+        escrow[to_phone] = []
+    escrow[to_phone].append({
+        "from_name": from_name,
+        "from_phone": from_phone,
+        "amount": amount,
+        "tx_hash": tx_hash,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    })
+    save_escrow(escrow)
+
+
+def claim_escrow(phone, user_name):
+    """Check for pending payments when user registers."""
+    escrow = load_escrow()
+    if phone not in escrow:
+        return None
+
+    pending = escrow[phone]
+    del escrow[phone]
+    save_escrow(escrow)
+
+    if not pending:
+        return None
+
+    total = sum(p["amount"] for p in pending)
+    senders = [f"R{p['amount']:,.2f} from {p['from_name']}" for p in pending]
+
+    return {
+        "total": total,
+        "count": len(pending),
+        "senders": senders,
+        "details": pending
+    }
 
 
 # ─── Data ───
@@ -226,7 +268,7 @@ def find_user(users, phone):
 
 def resp_menu(name):
     return (
-        f"Hey {name}! \n\n"
+        f"Hey {name}!\n\n"
         f"What can I do for you?\n\n"
         f"1. Check Balance\n"
         f"2. Send Money\n"
@@ -261,6 +303,19 @@ def resp_send_success(amt, name, phone, bal, tx):
         f"Sent!\n\n"
         f"R{amt:,.2f} to {name} ({phone})\n"
         f"Your balance: R{bal:,.2f}\n\n"
+        f"Tx: {tx[:16]}...\n"
+        f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
+        f"Anything else?"
+    )
+
+
+def resp_send_escrow(amt, phone, bal, tx):
+    return (
+        f"Sent!\n\n"
+        f"R{amt:,.2f} to {phone}\n"
+        f"Your balance: R{bal:,.2f}\n\n"
+        f"They haven't joined ZakaPay yet, but the money is safe.\n"
+        f"When they register, they'll receive it automatically.\n\n"
         f"Tx: {tx[:16]}...\n"
         f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
         f"Anything else?"
@@ -315,9 +370,9 @@ def resp_help():
         f"  \"Send R100 to +27820000002\"\n"
         f"  \"I want to deposit 500\"\n"
         f"  \"Take out 200\"\n"
-        f"  \"Show my transactions\"\n"
-        f"  \"How much do I have?\"\n\n"
-        f"Or use the menu: send hi\n\n"
+        f"  \"Show my transactions\"\n\n"
+        f"You can even send money to people who haven't registered yet.\n"
+        f"They'll receive it when they join ZakaPay!\n\n"
         f"Support: ngeli@zakapay.africa"
     )
 
@@ -325,25 +380,38 @@ def resp_help():
 def resp_welcome():
     return (
         f"Welcome to ZakaPay!\n\n"
-        f"I can help you send and receive money through WhatsApp.\n\n"
-        f"First, let's create your wallet.\n"
+        f"Send and receive money through WhatsApp.\n\n"
+        f"Create your wallet:\n"
         f"Send: register YourName 1234\n\n"
         f"Example: register Thabo 1234"
     )
 
 
-def resp_registered(name, pk):
-    return (
+def resp_registered(name, pk, pending=None):
+    msg = (
         f"Welcome {name}! Your wallet is ready.\n\n"
         f"Address: {pk[:16]}...\n\n"
-        f"You now have R100.00 welcome bonus!\n\n"
+        f"You have R100.00 welcome bonus!\n\n"
         f"Here's what you can do:\n"
         f"  \u2022 Check your balance\n"
         f"  \u2022 Send money to anyone\n"
         f"  \u2022 Deposit from your bank\n"
         f"  \u2022 Withdraw to your bank\n\n"
-        f"Just tell me what you need!"
     )
+
+    if pending:
+        msg += (
+            f"You have money waiting!\n\n"
+        )
+        for sender in pending["senders"]:
+            msg += f"  \u2022 {sender}\n"
+        msg += (
+            f"\nTotal: R{pending['total']:,.2f}\n\n"
+            f"Your new balance: R{100 + pending['total']:,.2f}\n\n"
+        )
+
+    msg += f"Just tell me what you need!"
+    return msg
 
 
 def resp_error(msg):
@@ -378,42 +446,108 @@ def do_send(phone, amount_str, to_phone):
     if not sender:
         clear_user_state(phone)
         return resp_welcome()
+
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
-        return resp_error("I couldn't read that amount. Try something like: 100")
+        return resp_error("I couldn't read that amount.")
+
     if not to_phone.startswith("+"):
         to_phone = "+" + to_phone
-    _, receiver = find_user(users, to_phone)
-    if not receiver:
-        clear_user_state(phone)
-        return resp_error(f"{to_phone} isn't on ZakaPay yet.\n\nThey need to register first.")
+
     zar = get_zarc_balance(sender["public_key"])
     if zar < amount:
         clear_user_state(phone)
-        return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}\nYou're trying to send: R{amount:,.2f}")
+        return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}\nSending: R{amount:,.2f}")
+
     sender_kp = Keypair.from_secret(sender["secret_encrypted"])
     zarc = load_zarc()
     za = Asset(zarc["asset_code"], zarc["issuer_public"])
-    try:
-        acc = server.load_account(sender_kp.public_key)
-        tx = (
-            TransactionBuilder(acc, NETWORK, 100)
-            .add_text_memo(f"ZakaPay:R{amount:.0f} to {receiver['name']}")
-            .append_payment_op(destination=receiver["public_key"], amount=f"{amount:.2f}", asset=za)
-            .set_timeout(30).build()
-        )
-        tx.sign(sender_kp)
-        resp = server.submit_transaction(tx)
-        new_bal = get_zarc_balance(sender["public_key"])
-        users[phone]["zar_balance"] = new_bal
-        save_users(users)
-        clear_user_state(phone)
-        return resp_send_success(amount, receiver["name"], to_phone, new_bal, resp["hash"])
-    except Exception as e:
-        clear_user_state(phone)
-        return resp_error(f"Transfer failed. {str(e)[:100]}")
+
+    # Check if recipient is registered
+    _, receiver = find_user(users, to_phone)
+
+    if receiver:
+        # ─── Recipient registered — send directly ───
+        try:
+            acc = server.load_account(sender_kp.public_key)
+            tx = (
+                TransactionBuilder(acc, NETWORK, 100)
+                .add_text_memo(f"ZakaPay:R{amount:.0f} to {receiver['name']}")
+                .append_payment_op(destination=receiver["public_key"], amount=f"{amount:.2f}", asset=za)
+                .set_timeout(30).build()
+            )
+            tx.sign(sender_kp)
+            resp = server.submit_transaction(tx)
+            new_bal = get_zarc_balance(sender["public_key"])
+            users[phone]["zar_balance"] = new_bal
+            save_users(users)
+            clear_user_state(phone)
+            return resp_send_success(amount, receiver["name"], to_phone, new_bal, resp["hash"])
+        except Exception as e:
+            clear_user_state(phone)
+            return resp_error(f"Transfer failed. {str(e)[:100]}")
+
+    else:
+        # ─── Recipient NOT registered — send to escrow ───
+        try:
+            # Create escrow keypair for this pending payment
+            escrow_kp = Keypair.random()
+
+            # Fund escrow account
+            requests.get("https://friendbot.stellar.org", params={"addr": escrow_kp.public_key}, timeout=10)
+            time.sleep(2)
+
+            # Trust ZARC from escrow
+            escrow_acc = server.load_account(escrow_kp.public_key)
+            tx = (
+                TransactionBuilder(escrow_acc, NETWORK, 100)
+                .append_change_trust_op(asset=za, limit="100000")
+                .set_timeout(30).build()
+            )
+            tx.sign(escrow_kp)
+            server.submit_transaction(tx)
+            time.sleep(2)
+
+            # Send ZARC to escrow
+            sender_acc = server.load_account(sender_kp.public_key)
+            tx = (
+                TransactionBuilder(sender_acc, NETWORK, 100)
+                .add_text_memo(f"ZakaPay:Escrow:R{amount:.0f} for {to_phone}")
+                .append_payment_op(destination=escrow_kp.public_key, amount=f"{amount:.2f}", asset=za)
+                .set_timeout(30).build()
+            )
+            tx.sign(sender_kp)
+            resp = server.submit_transaction(tx)
+
+            # Store escrow details
+            add_escrow(
+                to_phone=to_phone,
+                from_name=sender["name"],
+                from_phone=phone,
+                amount=amount,
+                tx_hash=resp["hash"]
+            )
+
+            # Also store the escrow secret key so we can claim later
+            escrow_data = load_escrow()
+            for entry in escrow_data[to_phone]:
+                if entry["tx_hash"] == resp["hash"]:
+                    entry["escrow_secret"] = escrow_kp.secret
+                    entry["escrow_public"] = escrow_kp.public_key
+            save_escrow(escrow_data)
+
+            new_bal = get_zarc_balance(sender["public_key"])
+            users[phone]["zar_balance"] = new_bal
+            save_users(users)
+            clear_user_state(phone)
+
+            return resp_send_escrow(amount, to_phone, new_bal, resp["hash"])
+
+        except Exception as e:
+            clear_user_state(phone)
+            return resp_error(f"Transfer failed. {str(e)[:100]}")
 
 
 def do_deposit(phone, amount_str):
@@ -530,44 +664,72 @@ def do_register(parts, phone):
         save_users(users)
     except Exception as e:
         print(f"ZARC error: {e}")
-    return resp_registered(name, kp.public_key)
+
+    # ─── Claim any pending escrow payments ───
+    pending = claim_escrow(phone, name)
+    if pending:
+        # Transfer escrowed funds to the new wallet
+        zarc = load_zarc()
+        za = Asset(zarc["asset_code"], zarc["issuer_public"])
+        total_received = 0
+
+        for detail in pending["details"]:
+            try:
+                escrow_secret = detail.get("escrow_secret")
+                if escrow_secret:
+                    escrow_kp = Keypair.from_secret(escrow_secret)
+                    escrow_balance = get_zarc_balance(escrow_kp.public_key)
+                    if escrow_balance > 0:
+                        escrow_acc = server.load_account(escrow_kp.public_key)
+                        tx = (
+                            TransactionBuilder(escrow_acc, NETWORK, 100)
+                            .add_text_memo(f"ZakaPay:Claimed from {detail['from_name']}")
+                            .append_payment_op(destination=kp.public_key, amount=f"{escrow_balance:.2f}", asset=za)
+                            .set_timeout(30).build()
+                        )
+                        tx.sign(escrow_kp)
+                        server.submit_transaction(tx)
+                        total_received += escrow_balance
+            except Exception as e:
+                print(f"Escrow claim error: {e}")
+
+        if total_received > 0:
+            new_bal = get_zarc_balance(kp.public_key)
+            users[phone]["zar_balance"] = new_bal
+            save_users(users)
+            pending["total"] = total_received
+
+    return resp_registered(name, kp.public_key, pending)
 
 
-# ─── Main Router — AI First ───
+# ─── Main Router ───
 
 def handle_message(message, phone):
     msg = message.strip()
     lower = msg.lower()
     parts = msg.split()
 
-    # ─── Quick shortcuts (instant, no AI needed) ───
-
-    # 0 / menu / back — always show menu
+    # Quick shortcuts
     if lower in ["0", "menu", "back"]:
         clear_user_state(phone)
         users = load_users()
         _, user = find_user(users, phone)
         return resp_menu(user["name"]) if user else resp_welcome()
 
-    # Register — must be exact command
     if lower.startswith("register"):
         return do_register(parts, phone)
 
-    # ─── State tracking (user already told us what to do) ───
-
+    # State tracking
     state = get_user_state(phone)
 
     if state == "awaiting_send_amount_and_phone":
         sp = msg.replace(",", "").split()
         if len(sp) >= 2:
-            amount_str = sp[0].replace("r", "").replace("R", "")
-            to_phone = sp[1]
-            return do_send(phone, amount_str, to_phone)
+            return do_send(phone, sp[0], sp[1])
         elif len(sp) == 1:
-            # They gave amount, now ask for phone
             set_user_state(phone, "awaiting_send_phone:" + sp[0])
             return f"R{sp[0]} — who should I send it to?\n\nEnter their phone number:\nExample: +27820000002"
-        return resp_error("Enter amount and phone number.\nExample: 100 +27820000002")
+        return resp_error("Enter amount and phone.\nExample: 100 +27820000002")
 
     if state and state.startswith("awaiting_send_phone:"):
         amount = state.split(":")[1]
@@ -588,50 +750,39 @@ def handle_message(message, phone):
             return do_withdraw(phone, amount)
         return resp_error("Enter the amount.\nExample: 500")
 
-    # ─── Menu number shortcuts ───
-
+    # Menu numbers
     if lower == "1":
         clear_user_state(phone)
         return do_balance(phone)
-
     if lower == "2":
         set_user_state(phone, "awaiting_send_amount_and_phone")
         return resp_send_prompt()
-
     if lower == "3":
         set_user_state(phone, "awaiting_deposit_amount")
         return resp_deposit_prompt()
-
     if lower == "4":
         set_user_state(phone, "awaiting_withdraw_amount")
         return resp_withdraw_prompt()
-
     if lower == "5":
         clear_user_state(phone)
         users = load_users()
         _, user = find_user(users, phone)
-        if not user:
-            return resp_welcome()
-        return resp_history(user["public_key"])
-
+        return resp_history(user["public_key"]) if user else resp_welcome()
     if lower in ["6", "help"]:
         clear_user_state(phone)
         return resp_help()
 
-    # ─── Quick commands (exact match, no AI) ───
-
+    # Quick exact matches
     if lower in ["hi", "hello", "hey", "start"]:
         clear_user_state(phone)
         users = load_users()
         _, user = find_user(users, phone)
         return resp_menu(user["name"]) if user else resp_welcome()
-
     if lower in ["balance", "bal"]:
         clear_user_state(phone)
         return do_balance(phone)
 
-    # ─── AI BRAIN — understands everything else ───
-
+    # ─── AI BRAIN ───
     users = load_users()
     _, user = find_user(users, phone)
     user_name = user["name"] if user else None
@@ -680,7 +831,7 @@ def handle_message(message, phone):
             if name and pin:
                 return do_register(["register", name, pin], phone)
             elif name:
-                return f"Almost there! What PIN do you want?\n\nSend: register {name} 1234"
+                return f"Almost there! What PIN?\n\nSend: register {name} 1234"
             return resp_error("Send: register YourName 1234")
 
         if action == "help":
@@ -689,11 +840,9 @@ def handle_message(message, phone):
 
         if action == "history":
             clear_user_state(phone)
-            if user:
-                return resp_history(user["public_key"])
-            return resp_welcome()
+            return resp_history(user["public_key"]) if user else resp_welcome()
 
-    # ─── Nothing worked ───
+    # Nothing worked
     clear_user_state(phone)
     return (
         f"I'm not sure what you mean.\n\n"
@@ -735,13 +884,12 @@ def webhook_360dialog():
 @app.route("/health", methods=["GET"])
 def health():
     ai_status = "connected" if GROQ_API_KEY else "no_key"
-    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "4.0", "ai": ai_status}), 200
+    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "4.1", "ai": ai_status, "feature": "escrow"}), 200
 
 
 @app.route("/", methods=["GET"])
 def home():
-    ai_status = "connected" if GROQ_API_KEY else "no_key"
-    return jsonify({"service": "ZakaPay API", "version": "4.0", "status": "running", "ai": ai_status}), 200
+    return jsonify({"service": "ZakaPay API", "version": "4.1", "status": "running"}), 200
 
 
 if __name__ == "__main__":

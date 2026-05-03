@@ -553,6 +553,7 @@ GREETINGS = [
 ]
 
 BALANCE_WORDS = [
+    "check my balance", "check balance",
     "balance", "bal", "zar", "rands", "money",
     "how much", "what do i have", "my money",
     "check balance", "check my balance", "show balance",
@@ -657,6 +658,36 @@ def rule_parse(msg, phone):
             return do_withdraw(phone, amt)
         set_user_state(phone, "awaiting_withdraw")
         return format_withdraw_prompt()
+
+    # Deposit intent
+    if any(x in lower for x in ["deposit", "put in", "add money", "add funds", "load money", "cash in", "top up", "bank account", "from my bank", "from bank"]):
+        # Check if amount is mentioned
+        import re
+        amounts = re.findall(r'[\d,]+(?:\.\d+)?', lower.replace("r", "").replace(",", ""))
+        if amounts:
+            return do_deposit(phone, amounts[0])
+        set_user_state(phone, "awaiting_deposit")
+        return format_deposit_prompt()
+
+    # Withdraw intent
+    if any(x in lower for x in ["withdraw", "take out", "cash out", "pull out", "get money", "send to bank"]):
+        amounts = re.findall(r'[\d,]+(?:\.\d+)?', lower.replace("r", "").replace(",", ""))
+        if amounts:
+            return do_withdraw(phone, amounts[0])
+        set_user_state(phone, "awaiting_withdraw")
+        return format_withdraw_prompt()
+
+    # Send intent (natural language)
+    if any(x in lower for x in ["send money", "transfer", "pay "]):
+        amounts = re.findall(r'[\d,]+(?:\.\d+)?', lower.replace("r", "").replace(",", ""))
+        phones = re.findall(r'\+?\d{10,12}', msg)
+        if amounts and phones:
+            return do_send(phone, amounts[0], phones[0])
+        elif amounts:
+            set_user_state(phone, "awaiting_send")
+            return f"I'll send R{amounts[0]} — who should I send it to?\n\nEnter their phone number:\nExample: +27820000002\n\nReply 0 for Main Menu"
+        set_user_state(phone, "awaiting_send")
+        return format_send_prompt()
 
     # Balance keywords
     for word in BALANCE_WORDS:

@@ -433,7 +433,7 @@ def resp_kyc_approved():
     return (
         f"Great news — you're verified!\n\n"
         f"Now let's create your wallet.\n"
-        f"What's your name?"
+        f"What should I call you?"
     )
 
 def resp_kyc_rejected(reason=""):

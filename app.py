@@ -9,7 +9,7 @@ import json
 import hashlib
 import requests
 import time
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from stellar_sdk import Keypair, Server, TransactionBuilder, Network, Asset
 
@@ -1035,6 +1035,10 @@ def webhook_360dialog():
 
 
 # ─── Admin KYC Endpoints ───
+
+@app.route("/admin", methods=["GET"])
+def admin_dashboard():
+    return render_template("admin.html")
 
 @app.route("/admin/kyc", methods=["GET"])
 def admin_kyc_list():

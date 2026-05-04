@@ -3,60 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZakaPay Admin — KYC Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <title>ZakaPay Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0a0f0c;
-            --surface: #111b14;
-            --green: #00E676;
-            --red: #FF5252;
-            --gold: #FFD740;
-            --text: #e8f5e9;
-            --muted: #6b8f6e;
-            --border: rgba(0,230,118,0.12);
-        }
+        :root { --bg:#0a0f0c; --surface:#111b14; --green:#00E676; --red:#FF5252; --gold:#FFD740; --text:#e8f5e9; --muted:#6b8f6e; --border:rgba(0,230,118,0.12); }
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
         .header { padding:24px 32px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
         .header h1 { font-size:1.4rem; font-weight:800; }
         .header h1 span { color:var(--green); }
-        .header .stats { display:flex; gap:20px; }
-        .stat { text-align:center; }
-        .stat .num { font-size:1.8rem; font-weight:800; color:var(--green); }
-        .stat .label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
+        .stats { display:flex; gap:20px; }
+        .stat .num { font-size:1.8rem; font-weight:800; color:var(--green); text-align:center; }
+        .stat .label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; text-align:center; }
         .container { max-width:1000px; margin:0 auto; padding:32px 24px; }
         .section-title { font-size:1.1rem; font-weight:700; margin-bottom:20px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
         .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:16px; }
         .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:8px; }
         .card-header .phone { font-size:1.1rem; font-weight:700; }
         .card-header .time { font-size:12px; color:var(--muted); margin-left:8px; }
-        .badge { display:inline-block; padding:4px 12px; border-radius:100px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+        .badge { display:inline-block; padding:4px 12px; border-radius:100px; font-size:11px; font-weight:700; text-transform:uppercase; }
         .badge.pending { background:rgba(255,215,64,0.15); color:var(--gold); }
         .badge.approved { background:rgba(0,230,118,0.15); color:var(--green); }
         .badge.rejected { background:rgba(255,82,82,0.15); color:var(--red); }
         .photos { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
         .photo-box { background:#0a0f0c; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-        .photo-box .label { padding:8px 12px; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
+        .photo-box .label { padding:8px 12px; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; }
         .photo-box img { width:100%; height:280px; object-fit:cover; display:block; }
         .actions { display:flex; gap:12px; }
         .btn { padding:12px 28px; border:none; border-radius:100px; font-family:'Outfit',sans-serif; font-weight:700; font-size:14px; cursor:pointer; transition:all 0.2s; }
         .btn-approve { background:var(--green); color:#000; }
-        .btn-approve:hover { box-shadow:0 0 20px rgba(0,230,118,0.3); transform:translateY(-1px); }
+        .btn-approve:hover { box-shadow:0 0 20px rgba(0,230,118,0.3); }
         .btn-reject { background:var(--red); color:#fff; }
-        .btn-reject:hover { box-shadow:0 0 20px rgba(255,82,82,0.3); transform:translateY(-1px); }
-        .btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+        .btn-reject:hover { box-shadow:0 0 20px rgba(255,82,82,0.3); }
+        .btn:disabled { opacity:0.4; cursor:not-allowed; }
         .empty { text-align:center; padding:60px 20px; color:var(--muted); }
         .empty .icon { font-size:48px; margin-bottom:16px; }
         .empty .msg { font-size:1.1rem; font-weight:600; }
-        .toast { position:fixed; bottom:24px; right:24px; padding:16px 24px; border-radius:12px; font-weight:700; font-size:14px; z-index:999; animation:slideUp 0.3s ease; display:none; }
+        .toast { position:fixed; bottom:24px; right:24px; padding:16px 24px; border-radius:12px; font-weight:700; font-size:14px; z-index:999; display:none; }
         .toast.success { background:var(--green); color:#000; }
         .toast.error { background:var(--red); color:#fff; }
-        @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-        .refresh-btn { padding:10px 20px; background:var(--surface); border:1px solid var(--border); border-radius:100px; color:var(--text); font-family:'Outfit',sans-serif; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s; }
+        .refresh-btn { padding:10px 20px; background:var(--surface); border:1px solid var(--border); border-radius:100px; color:var(--text); font-family:'Outfit',sans-serif; font-weight:600; font-size:13px; cursor:pointer; }
         .refresh-btn:hover { border-color:var(--green); color:var(--green); }
-        @media(max-width:640px) { .photos { grid-template-columns:1fr; } .header { padding:16px; } }
+        @media(max-width:640px) { .photos { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -71,7 +59,7 @@
     <div class="container">
         <div class="section-title">Pending Verifications</div>
         <div id="pendingList"></div>
-        <div class="section-title" style="margin-top:40px;">All Submissions</div>
+        <div class="section-title" style="margin-top:40px">All Submissions</div>
         <div id="allList"></div>
     </div>
     <div class="toast" id="toast"></div>
@@ -88,54 +76,37 @@
                 const all = Object.entries(subs);
                 document.getElementById('pendingList').innerHTML = pending.length === 0
                     ? '<div class="empty"><div class="icon">&#9989;</div><div class="msg">No pending verifications</div></div>'
-                    : pending.map(([phone, s]) => cardHTML(phone, s)).join('');
+                    : pending.map(([p, s]) => cardHTML(p, s)).join('');
                 document.getElementById('allList').innerHTML = all.length === 0
                     ? '<div class="empty"><div class="icon">&#128247;</div><div class="msg">No submissions yet</div></div>'
-                    : all.map(([phone, s]) => cardHTML(phone, s)).join('');
+                    : all.map(([p, s]) => cardHTML(p, s)).join('');
             } catch(e) { console.error(e); }
         }
         function cardHTML(phone, s) {
-            const isPending = s.status === 'pending';
-            return '<div class="card" id="card-'+phone+'">'
-                + '<div class="card-header"><div><span class="phone">'+phone+'</span></div><div>'
-                + '<span class="badge '+s.status+'">'+s.status+'</span>'
-                + '<span class="time">'+s.submitted_at+'</span></div></div>'
-                + '<div class="photos"><div class="photo-box"><div class="label">Selfie</div>'
-                + '<img src="'+s.selfie_url+'" alt="Selfie" onerror="this.style.display=\'none\'"></div>'
-                + '<div class="photo-box"><div class="label">ID / Passport</div>'
-                + '<img src="'+s.id_url+'" alt="ID" onerror="this.style.display=\'none\'"></div></div>'
-                + (isPending
-                    ? '<div class="actions"><button class="btn btn-approve" onclick="approve(\''+phone+'\')">Approve</button><button class="btn btn-reject" onclick="reject(\''+phone+'\')">Reject</button></div>'
-                    : '<div style="font-size:12px;color:var(--muted);">'+(s.reviewed_at ? 'Reviewed: '+s.reviewed_at : '')+(s.notes ? ' &middot; '+s.notes : '')+'</div>')
-                + '</div>';
+            const p = s.status === 'pending';
+            return '<div class="card"><div class="card-header"><div><span class="phone">'+phone+'</span></div><div>'
+                +'<span class="badge '+s.status+'">'+s.status+'</span> <span class="time">'+s.submitted_at+'</span></div></div>'
+                +'<div class="photos"><div class="photo-box"><div class="label">Selfie</div>'
+                +'<img src="'+s.selfie_url+'" onerror="this.style.display=\'none\'"></div>'
+                +'<div class="photo-box"><div class="label">ID / Passport</div>'
+                +'<img src="'+s.id_url+'" onerror="this.style.display=\'none\'"></div></div>'
+                +(p ? '<div class="actions"><button class="btn btn-approve" onclick="approve(\''+phone+'\')">Approve</button><button class="btn btn-reject" onclick="reject(\''+phone+'\')">Reject</button></div>'
+                    : '<div style="font-size:12px;color:var(--muted)">'+(s.reviewed_at||'')+(s.notes?' - '+s.notes:'')+'</div>')
+                +'</div>';
         }
         async function approve(phone) {
-            const btn = event.target; btn.disabled = true; btn.textContent = 'Approving...';
-            try {
-                await fetch(API + '/admin/kyc/approve/' + encodeURIComponent(phone), { method:'POST' });
-                showToast('Approved '+phone, 'success');
-                setTimeout(() => loadKYC(), 500);
-            } catch(e) { showToast('Error','error'); btn.disabled=false; btn.textContent='Approve'; }
+            const b=event.target;b.disabled=true;b.textContent='Approving...';
+            await fetch(API+'/admin/kyc/approve/'+encodeURIComponent(phone),{method:'POST'});
+            showToast('Approved '+phone,'success');setTimeout(()=>loadKYC(),500);
         }
         async function reject(phone) {
-            const reason = prompt('Reason (optional):') || '';
-            const btn = event.target; btn.disabled = true; btn.textContent = 'Rejecting...';
-            try {
-                await fetch(API + '/admin/kyc/reject/' + encodeURIComponent(phone), {
-                    method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({ reason })
-                });
-                showToast('Rejected '+phone, 'error');
-                setTimeout(() => loadKYC(), 500);
-            } catch(e) { showToast('Error','error'); btn.disabled=false; btn.textContent='Reject'; }
+            const r=prompt('Reason (optional):')||'';
+            const b=event.target;b.disabled=true;b.textContent='Rejecting...';
+            await fetch(API+'/admin/kyc/reject/'+encodeURIComponent(phone),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:r})});
+            showToast('Rejected '+phone,'error');setTimeout(()=>loadKYC(),500);
         }
-        function showToast(msg, type) {
-            const t = document.getElementById('toast');
-            t.textContent = msg; t.className = 'toast '+type; t.style.display='block';
-            setTimeout(() => { t.style.display='none'; }, 3000);
-        }
-        loadKYC();
-        setInterval(loadKYC, 10000);
+        function showToast(m,t) { const s=document.getElementById('toast');s.textContent=m;s.className='toast '+t;s.style.display='block';setTimeout(()=>s.style.display='none',3000); }
+        loadKYC();setInterval(loadKYC,10000);
     </script>
 </body>
 </html>

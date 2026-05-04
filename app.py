@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-ZakaPay v4.2 — AI-First + Escrow + KYC/FICA Verification
-Send money to anyone. Verify identity via WhatsApp selfie + ID photo.
+ZakaPay v4.3 — KYC-First Registration
+Verify identity (selfie + ID) → Admin approves → Create wallet
 """
 
 import os
 import json
 import hashlib
-import re
 import requests
 import time
 from flask import Flask, request, jsonify
@@ -37,13 +36,6 @@ ZARC_EMBEDDED = {
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# KYC Limits
-LIMITS = {
-    "unverified": {"daily_send": 1000, "monthly_send": 3000, "withdraw": 500},
-    "pending": {"daily_send": 1000, "monthly_send": 3000, "withdraw": 500},
-    "verified": {"daily_send": 10000, "monthly_send": 50000, "withdraw": 25000},
-}
-
 
 def load_env():
     global GROQ_API_KEY
@@ -66,9 +58,7 @@ def ai_understand(user_message, user_name=None):
     api_key = load_env()
     if not api_key:
         return None
-
     context = f"The user's name is {user_name}. " if user_name else ""
-
     prompt = f"""You are the brain behind ZakaPay, a WhatsApp payment app in South Africa.
 {context}
 The user just sent this WhatsApp message. Understand what they want and return ONLY a JSON object.
@@ -81,42 +71,23 @@ Possible actions:
 {{"action":"send","amount":<number>,"phone":"<phone or empty>"}} — send money, transfer, pay someone
 {{"action":"deposit","amount":<number>}} — deposit, put money in, load money, add funds, cash in, top up
 {{"action":"withdraw","amount":<number>}} — withdraw, take out, cash out, pull out, get money out
-{{"action":"register","name":"<name>","pin":"<pin or empty>"}} — create account, sign up, register
 {{"action":"verify"}} — verify, kyc, fica, verify my account, id verification, confirm identity
 {{"action":"help"}} — what can you do, help, how does this work
 {{"action":"history"}} — transactions, history, statement, past payments
 
-Rules:
-- "take out 1000" → {{"action":"withdraw","amount":1000}}
-- "deposit from my bank" → {{"action":"deposit","amount":0}}
-- "send R500 to +27820000001" → {{"action":"send","amount":500,"phone":"+27820000001"}}
-- "send money to Mamakhe" → {{"action":"send","amount":0,"phone":""}}
-- "check my balance" → {{"action":"balance"}}
-- "how much money do I have" → {{"action":"balance"}}
-- "verify my account" → {{"action":"verify"}}
-- "I want to verify" → {{"action":"verify"}}
-
 Return ONLY the JSON. Nothing else."""
-
     try:
         resp = requests.post(
             GROQ_URL,
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json={
-                "model": "llama-3.1-8b-instant",
-                "messages": [
-                    {"role": "system", "content": "Return only valid JSON. No explanation."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.1,
-                "max_tokens": 100
-            },
+            json={"model": "llama-3.1-8b-instant", "messages": [
+                {"role": "system", "content": "Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ], "temperature": 0.1, "max_tokens": 100},
             timeout=10
         )
-
         if resp.status_code == 200:
-            data = resp.json()
-            text = data["choices"][0]["message"]["content"].strip()
+            text = resp.json()["choices"][0]["message"]["content"].strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1] if "\n" in text else text[3:]
             if text.endswith("```"):
@@ -124,15 +95,10 @@ Return ONLY the JSON. Nothing else."""
             text = text.strip()
             if text.startswith("json"):
                 text = text[4:].strip()
-            intent = json.loads(text)
-            print(f"AI: {intent}")
-            return intent
-        else:
-            print(f"AI error: {resp.status_code}")
-            return None
+            return json.loads(text)
     except Exception as e:
         print(f"AI error: {e}")
-        return None
+    return None
 
 
 # ─── State ───
@@ -144,26 +110,72 @@ def load_state():
     except FileNotFoundError:
         return {}
 
-
 def save_state(states):
     with open(STATE_FILE, "w") as f:
         json.dump(states, f, indent=2)
 
-
 def get_user_state(phone):
     return load_state().get(phone)
-
 
 def set_user_state(phone, state):
     states = load_state()
     states[phone] = state
     save_state(states)
 
-
 def clear_user_state(phone):
     states = load_state()
     states.pop(phone, None)
     save_state(states)
+
+
+# ─── Data ───
+
+def load_users():
+    try:
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+def save_users(users):
+    with open(DB_FILE, "w") as f:
+        json.dump(users, f, indent=2)
+
+def load_zarc():
+    return ZARC_EMBEDDED
+
+def get_balance(public_key, asset_code="native"):
+    try:
+        resp = requests.get(f"{HORIZON}/accounts/{public_key}", timeout=10)
+        if resp.status_code == 200:
+            for bal in resp.json()["balances"]:
+                if asset_code == "native" and bal["asset_type"] == "native":
+                    return float(bal["balance"])
+                elif bal.get("asset_code") == asset_code:
+                    return float(bal["balance"])
+    except:
+        pass
+    return 0.0
+
+def get_zarc_balance(public_key):
+    zarc = load_zarc()
+    try:
+        resp = requests.get(f"{HORIZON}/accounts/{public_key}", timeout=10)
+        if resp.status_code == 200:
+            for bal in resp.json()["balances"]:
+                if (bal.get("asset_code") == "ZARC" and
+                    bal.get("asset_issuer") == zarc["issuer_public"]):
+                    return float(bal["balance"])
+    except:
+        pass
+    return 0.0
+
+def find_user(users, phone):
+    clean = phone.replace(" ", "").replace("-", "")
+    for p, u in users.items():
+        if p == clean:
+            return p, u
+    return None, None
 
 
 # ─── Escrow ───
@@ -175,25 +187,20 @@ def load_escrow():
     except FileNotFoundError:
         return {}
 
-
 def save_escrow(escrow):
     with open(ESCROW_FILE, "w") as f:
         json.dump(escrow, f, indent=2)
-
 
 def add_escrow(to_phone, from_name, from_phone, amount, tx_hash):
     escrow = load_escrow()
     if to_phone not in escrow:
         escrow[to_phone] = []
     escrow[to_phone].append({
-        "from_name": from_name,
-        "from_phone": from_phone,
-        "amount": amount,
-        "tx_hash": tx_hash,
+        "from_name": from_name, "from_phone": from_phone,
+        "amount": amount, "tx_hash": tx_hash,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
     })
     save_escrow(escrow)
-
 
 def claim_escrow(phone, user_name):
     escrow = load_escrow()
@@ -218,28 +225,17 @@ def load_kyc():
     except FileNotFoundError:
         return {}
 
-
 def save_kyc(kyc):
     with open(KYC_FILE, "w") as f:
         json.dump(kyc, f, indent=2)
 
-
-def get_kyc_status(phone):
-    users = load_users()
-    _, user = find_user(users, phone)
-    if not user:
-        return None
-    return user.get("kyc_status", "unverified")
-
+def get_kyc_by_phone(phone):
+    kyc = load_kyc()
+    return kyc.get(phone, None)
 
 def save_kyc_submission(phone, selfie_url, id_url):
-    """Save KYC submission for admin review."""
     kyc = load_kyc()
-    users = load_users()
-    _, user = find_user(users, phone)
-
     kyc[phone] = {
-        "name": user["name"] if user else "Unknown",
         "phone": phone,
         "selfie_url": selfie_url,
         "id_url": id_url,
@@ -250,107 +246,32 @@ def save_kyc_submission(phone, selfie_url, id_url):
         "notes": ""
     }
     save_kyc(kyc)
-
-    # Update user status
-    if user:
-        users[phone]["kyc_status"] = "pending"
-        save_users(users)
-
     return kyc[phone]
 
-
 def approve_kyc(phone, reviewer="admin"):
-    """Admin approves KYC."""
     kyc = load_kyc()
-    users = load_users()
-
     if phone in kyc:
         kyc[phone]["status"] = "approved"
         kyc[phone]["reviewed_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         kyc[phone]["reviewed_by"] = reviewer
         save_kyc(kyc)
-
+    # Also update user if already registered
+    users = load_users()
     _, user = find_user(users, phone)
     if user:
         users[phone]["kyc_status"] = "verified"
         save_users(users)
-
     return True
 
-
 def reject_kyc(phone, reason="", reviewer="admin"):
-    """Admin rejects KYC."""
     kyc = load_kyc()
-    users = load_users()
-
     if phone in kyc:
         kyc[phone]["status"] = "rejected"
         kyc[phone]["reviewed_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         kyc[phone]["reviewed_by"] = reviewer
         kyc[phone]["notes"] = reason
         save_kyc(kyc)
-
-    _, user = find_user(users, phone)
-    if user:
-        users[phone]["kyc_status"] = "unverified"
-        save_users(users)
-
     return True
-
-
-# ─── Data ───
-
-def load_users():
-    try:
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
-
-
-def save_users(users):
-    with open(DB_FILE, "w") as f:
-        json.dump(users, f, indent=2)
-
-
-def load_zarc():
-    return ZARC_EMBEDDED
-
-
-def get_balance(public_key, asset_code="native"):
-    try:
-        resp = requests.get(f"{HORIZON}/accounts/{public_key}", timeout=10)
-        if resp.status_code == 200:
-            for bal in resp.json()["balances"]:
-                if asset_code == "native" and bal["asset_type"] == "native":
-                    return float(bal["balance"])
-                elif bal.get("asset_code") == asset_code:
-                    return float(bal["balance"])
-    except:
-        pass
-    return 0.0
-
-
-def get_zarc_balance(public_key):
-    zarc = load_zarc()
-    try:
-        resp = requests.get(f"{HORIZON}/accounts/{public_key}", timeout=10)
-        if resp.status_code == 200:
-            for bal in resp.json()["balances"]:
-                if (bal.get("asset_code") == "ZARC" and
-                    bal.get("asset_issuer") == zarc["issuer_public"]):
-                    return float(bal["balance"])
-    except:
-        pass
-    return 0.0
-
-
-def find_user(users, phone):
-    clean = phone.replace(" ", "").replace("-", "")
-    for p, u in users.items():
-        if p == clean:
-            return p, u
-    return None, None
 
 
 # ─── Responses ───
@@ -359,7 +280,6 @@ def resp_menu(name, kyc_status="unverified"):
     verify_option = ""
     if kyc_status == "unverified":
         verify_option = "\n7. Verify My Account"
-
     return (
         f"Hey {name}!\n\n"
         f"What can I do for you?\n\n"
@@ -373,7 +293,6 @@ def resp_menu(name, kyc_status="unverified"):
         f"Or just tell me what you need!"
     )
 
-
 def resp_balance(name, zar, xlm):
     return (
         f"{name}, here are your balances:\n\n"
@@ -382,7 +301,6 @@ def resp_balance(name, zar, xlm):
         f"Anything else?"
     )
 
-
 def resp_send_prompt():
     return (
         f"Sure! Who do you want to send to?\n\n"
@@ -390,7 +308,6 @@ def resp_send_prompt():
         f"Example: 100 +27820000002\n\n"
         f"Or just say the amount and I'll ask for the number."
     )
-
 
 def resp_send_success(amt, name, phone, bal, tx):
     return (
@@ -401,7 +318,6 @@ def resp_send_success(amt, name, phone, bal, tx):
         f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
         f"Anything else?"
     )
-
 
 def resp_send_escrow(amt, phone, bal, tx):
     return (
@@ -415,7 +331,6 @@ def resp_send_escrow(amt, phone, bal, tx):
         f"Anything else?"
     )
 
-
 def resp_deposit_prompt():
     return (
         f"How much do you want to deposit?\n\n"
@@ -423,7 +338,6 @@ def resp_deposit_prompt():
         f"Example: 500\n\n"
         f"Maximum: R50,000"
     )
-
 
 def resp_deposit_success(amt, bal, tx):
     return (
@@ -435,7 +349,6 @@ def resp_deposit_success(amt, bal, tx):
         f"Anything else?"
     )
 
-
 def resp_withdraw_prompt():
     return (
         f"How much do you want to withdraw?\n\n"
@@ -443,7 +356,6 @@ def resp_withdraw_prompt():
         f"Example: 500\n\n"
         f"Funds arrive in 1-2 business days."
     )
-
 
 def resp_withdraw_success(amt, bal, tx):
     return (
@@ -455,7 +367,6 @@ def resp_withdraw_success(amt, bal, tx):
         f"Funds arrive in 1-2 days. Anything else?"
     )
 
-
 def resp_help():
     return (
         f"I'm ZakaPay — your WhatsApp money assistant.\n\n"
@@ -464,50 +375,9 @@ def resp_help():
         f"  \"Send R100 to +27820000002\"\n"
         f"  \"I want to deposit 500\"\n"
         f"  \"Take out 200\"\n"
-        f"  \"Show my transactions\"\n"
-        f"  \"Verify my account\"\n\n"
-        f"You can even send money to people who haven't registered yet.\n"
-        f"They'll receive it when they join ZakaPay!\n\n"
+        f"  \"Show my transactions\"\n\n"
         f"Support: ngeli@zakapay.africa"
     )
-
-
-def resp_welcome():
-    return (
-        f"Welcome to ZakaPay!\n\n"
-        f"Send and receive money through WhatsApp.\n\n"
-        f"Create your wallet:\n"
-        f"Send: register YourName 1234\n\n"
-        f"Example: register Thabo 1234"
-    )
-
-
-def resp_registered(name, pk, pending=None):
-    msg = (
-        f"Welcome {name}! Your wallet is ready.\n\n"
-        f"Address: {pk[:16]}...\n\n"
-        f"You have R100.00 welcome bonus!\n\n"
-        f"Here's what you can do:\n"
-        f"  \u2022 Check your balance\n"
-        f"  \u2022 Send money to anyone\n"
-        f"  \u2022 Deposit from your bank\n"
-        f"  \u2022 Withdraw to your bank\n\n"
-    )
-
-    if pending:
-        msg += f"You have money waiting!\n\n"
-        for sender in pending["senders"]:
-            msg += f"  \u2022 {sender}\n"
-        msg += f"\nTotal: R{pending['total']:,.2f}\n\n"
-        msg += f"Your new balance: R{100 + pending['total']:,.2f}\n\n"
-
-    msg += f"Just tell me what you need!"
-    return msg
-
-
-def resp_error(msg):
-    return f"Hmm, something went wrong.\n\n{msg}\n\nTry again or send hi for the menu."
-
 
 def resp_history(pk):
     return (
@@ -516,79 +386,86 @@ def resp_history(pk):
         f"Anything else?"
     )
 
-
-# ─── KYC Responses ───
-
-def resp_kyc_intro(kyc_status):
-    if kyc_status == "verified":
-        return (
-            f"Your account is already verified!\n\n"
-            f"You have full access to all ZakaPay features.\n\n"
-            f"Anything else?"
-        )
-    elif kyc_status == "pending":
-        return (
-            f"Your verification is being reviewed.\n\n"
-            f"We'll WhatsApp you once it's done.\n"
-            f"Usually takes less than 24 hours.\n\n"
-            f"Anything else?"
-        )
-    else:
-        return (
-            f"To verify your account, I need two things:\n\n"
-            f"1. A clear selfie of your face\n"
-            f"2. A photo of your SA ID or Passport\n\n"
-            f"Send your selfie first.\n"
-            f"Just take a photo and send it here."
-        )
+def resp_error(msg):
+    return f"Hmm, something went wrong.\n\n{msg}\n\nTry again or send hi for the menu."
 
 
-def resp_kyc_selfie_received():
+# ─── KYC-First Registration Responses ───
+
+def resp_new_user():
+    """First message for a brand new user — start KYC."""
     return (
-        f"Selfie received!\n\n"
-        f"Now send a photo of your ID book or Passport.\n"
-        f"Make sure the photo is clear and all details are visible."
+        f"Hey! Welcome to ZakaPay.\n\n"
+        f"I help you send and receive money through WhatsApp.\n\n"
+        f"Before we get started, I need to verify your identity.\n\n"
+        f"Step 1: Send me a selfie.\n"
+        f"Just take a clear photo of your face and send it here."
     )
 
+def resp_kyc_selfie_received():
+    """Selfie received, now ask for ID."""
+    return (
+        f"Selfie received!\n\n"
+        f"Step 2: Send me a photo of your SA ID or Passport.\n"
+        f"Make sure all the details are visible and the photo is clear."
+    )
 
 def resp_kyc_submitted():
+    """Both photos received, submission complete."""
     return (
         f"Verification submitted!\n\n"
         f"We'll review your documents within 24 hours.\n"
-        f"You'll get a WhatsApp message once verified.\n\n"
-        f"What you get after verification:\n"
-        f"  \u2022 Higher send limits (R10,000/month)\n"
-        f"  \u2022 Higher withdrawal limits\n"
-        f"  \u2022 Cross-border transfers\n"
-        f"  \u2022 Full account access\n\n"
-        f"Need anything else?"
+        f"Come back and say hi to check your status.\n\n"
+        f"See you soon!"
     )
 
+def resp_kyc_pending():
+    """User comes back but KYC still pending."""
+    return (
+        f"Welcome back!\n\n"
+        f"Your verification is still being reviewed.\n"
+        f"We'll WhatsApp you once it's done.\n\n"
+        f"Usually takes less than 24 hours."
+    )
 
 def resp_kyc_approved():
+    """KYC approved — now start registration."""
     return (
-        f"Your account is verified!\n\n"
-        f"You now have full access to ZakaPay:\n"
-        f"  \u2022 Send up to R10,000/day\n"
-        f"  \u2022 Withdraw up to R25,000/month\n"
-        f"  \u2022 Cross-border transfers\n\n"
-        f"Anything else?"
+        f"Great news — you're verified!\n\n"
+        f"Now let's create your wallet.\n"
+        f"What's your name?"
     )
-
 
 def resp_kyc_rejected(reason=""):
-    msg = (
-        f"Verification couldn't be completed.\n\n"
-    )
+    """KYC rejected — try again."""
+    msg = f"Verification couldn't be completed.\n\n"
     if reason:
         msg += f"Reason: {reason}\n\n"
     msg += (
-        f"Please try again:\n"
-        f"  1. Take a clear selfie\n"
-        f"  2. Take a clear photo of your ID\n\n"
-        f"Make sure all text on your ID is readable.\n\n"
-        f"Send your selfie to try again."
+        f"Let's try again.\n\n"
+        f"Send me a clear selfie."
     )
+    return msg
+
+def resp_registered(name, pk, pending=None):
+    msg = (
+        f"You're all set, {name}!\n\n"
+        f"Your wallet is ready.\n"
+        f"Address: {pk[:16]}...\n\n"
+        f"You have R100.00 welcome bonus!\n\n"
+    )
+    if pending:
+        msg += f"You also have money waiting!\n\n"
+        for sender in pending["senders"]:
+            msg += f"  \u2022 {sender}\n"
+        msg += f"\nTotal: R{pending['total']:,.2f}\n\n"
+        msg += f"Your balance: R{100 + pending['total']:,.2f}\n\n"
+    msg += f"What would you like to do?\n\n"
+    msg += f"  \u2022 Check your balance\n"
+    msg += f"  \u2022 Send money\n"
+    msg += f"  \u2022 Deposit from your bank\n"
+    msg += f"  \u2022 Withdraw to your bank\n\n"
+    msg += f"Just tell me what you need!"
     return msg
 
 
@@ -598,7 +475,7 @@ def do_balance(phone):
     users = load_users()
     _, user = find_user(users, phone)
     if not user:
-        return resp_welcome()
+        return None
     xlm = get_balance(user["public_key"])
     zar = get_zarc_balance(user["public_key"])
     users[phone]["zar_balance"] = zar
@@ -611,28 +488,22 @@ def do_send(phone, amount_str, to_phone):
     _, sender = find_user(users, phone)
     if not sender:
         clear_user_state(phone)
-        return resp_welcome()
-
+        return None
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
         clear_user_state(phone)
         return resp_error("I couldn't read that amount.")
-
     if not to_phone.startswith("+"):
         to_phone = "+" + to_phone
-
     zar = get_zarc_balance(sender["public_key"])
     if zar < amount:
         clear_user_state(phone)
         return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}\nSending: R{amount:,.2f}")
-
     sender_kp = Keypair.from_secret(sender["secret_encrypted"])
     zarc = load_zarc()
     za = Asset(zarc["asset_code"], zarc["issuer_public"])
-
     _, receiver = find_user(users, to_phone)
-
     if receiver:
         try:
             acc = server.load_account(sender_kp.public_key)
@@ -658,7 +529,6 @@ def do_send(phone, amount_str, to_phone):
             escrow_kp = Keypair.random()
             requests.get("https://friendbot.stellar.org", params={"addr": escrow_kp.public_key}, timeout=10)
             time.sleep(2)
-
             escrow_acc = server.load_account(escrow_kp.public_key)
             tx = (
                 TransactionBuilder(escrow_acc, NETWORK, 100)
@@ -668,7 +538,6 @@ def do_send(phone, amount_str, to_phone):
             tx.sign(escrow_kp)
             server.submit_transaction(tx)
             time.sleep(2)
-
             sender_acc = server.load_account(sender_kp.public_key)
             tx = (
                 TransactionBuilder(sender_acc, NETWORK, 100)
@@ -678,24 +547,19 @@ def do_send(phone, amount_str, to_phone):
             )
             tx.sign(sender_kp)
             resp = server.submit_transaction(tx)
-
             add_escrow(to_phone, sender["name"], phone, amount, resp["hash"])
-
             escrow_data = load_escrow()
             for entry in escrow_data[to_phone]:
                 if entry["tx_hash"] == resp["hash"]:
                     entry["escrow_secret"] = escrow_kp.secret
                     entry["escrow_public"] = escrow_kp.public_key
             save_escrow(escrow_data)
-
             time.sleep(3)
             new_bal = get_zarc_balance(sender["public_key"])
             users[phone]["zar_balance"] = new_bal
             save_users(users)
             clear_user_state(phone)
-
             return resp_send_escrow(amount, to_phone, new_bal, resp["hash"])
-
         except Exception as e:
             clear_user_state(phone)
             return resp_error(f"Transfer failed. {str(e)[:100]}")
@@ -706,7 +570,7 @@ def do_deposit(phone, amount_str):
     _, user = find_user(users, phone)
     if not user:
         clear_user_state(phone)
-        return resp_welcome()
+        return None
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
@@ -744,7 +608,7 @@ def do_withdraw(phone, amount_str):
     _, user = find_user(users, phone)
     if not user:
         clear_user_state(phone)
-        return resp_welcome()
+        return None
     try:
         amount = float(str(amount_str).replace("r", "").replace("R", "").replace(",", ""))
     except ValueError:
@@ -778,13 +642,8 @@ def do_withdraw(phone, amount_str):
         return resp_error(f"Withdrawal failed. {str(e)[:100]}")
 
 
-def do_register(parts, phone):
-    if len(parts) < 3:
-        return resp_error("Send: register YourName 1234")
-    name = parts[1].title()
-    pin = parts[2]
-    if len(pin) < 4 or not pin.isdigit():
-        return resp_error("PIN must be at least 4 digits.")
+def do_create_wallet(name, pin, phone):
+    """Create wallet after KYC approval."""
     users = load_users()
     _, existing = find_user(users, phone)
     if existing:
@@ -799,7 +658,7 @@ def do_register(parts, phone):
         "name": name, "public_key": kp.public_key,
         "secret_encrypted": kp.secret, "pin_hash": pin_hash,
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"), "zar_balance": 0,
-        "kyc_status": "unverified"
+        "kyc_status": "verified"
     }
     save_users(users)
     zarc = load_zarc()
@@ -859,7 +718,7 @@ def handle_message(message, phone, media_url=None, media_type=None):
     lower = msg.lower()
     parts = msg.split()
 
-    # Quick shortcuts
+    # Quick shortcuts for existing users
     if lower in ["0", "menu", "back"]:
         clear_user_state(phone)
         users = load_users()
@@ -867,22 +726,36 @@ def handle_message(message, phone, media_url=None, media_type=None):
         if user:
             kyc = user.get("kyc_status", "unverified")
             return resp_menu(user["name"], kyc)
-        return resp_welcome()
-
-    if lower.startswith("register"):
-        return do_register(parts, phone)
+        # Not registered — check KYC
+        kyc = get_kyc_by_phone(phone)
+        if kyc and kyc["status"] == "approved":
+            set_user_state(phone, "awaiting_name")
+            return resp_kyc_approved()
+        elif kyc and kyc["status"] == "pending":
+            return resp_kyc_pending()
+        elif kyc and kyc["status"] == "rejected":
+            set_user_state(phone, "awaiting_kyc_selfie")
+            return resp_kyc_rejected(kyc.get("notes", ""))
+        else:
+            set_user_state(phone, "awaiting_kyc_selfie")
+            return resp_new_user()
 
     # State tracking
     state = get_user_state(phone)
 
-    # ─── KYC Flow ───
+    # ═══════════════════════════════════════════
+    # KYC-FIRST REGISTRATION FLOW (new users)
+    # ═══════════════════════════════════════════
+
+    # Awaiting selfie
     if state == "awaiting_kyc_selfie":
         if media_url and media_type and "image" in media_type:
             set_user_state(phone, "awaiting_kyc_id:" + media_url)
             return resp_kyc_selfie_received()
         else:
-            return f"Please send a photo (not text).\n\nTake a clear selfie and send it as an image."
+            return f"Please send a photo (not text).\n\nTake a clear selfie of your face and send it as an image."
 
+    # Awaiting ID photo
     if state and state.startswith("awaiting_kyc_id:"):
         if media_url and media_type and "image" in media_type:
             selfie_url = state.split(":", 1)[1]
@@ -893,7 +766,31 @@ def handle_message(message, phone, media_url=None, media_type=None):
         else:
             return f"Please send a photo of your ID or Passport.\n\nTake a clear photo and send it as an image."
 
-    # ─── Payment Flow States ───
+    # Awaiting name (after KYC approved)
+    if state == "awaiting_name":
+        name = msg.strip().title()
+        if len(name) < 2 or len(name) > 30:
+            return f"Please enter a valid name."
+        set_user_state(phone, "awaiting_pin:" + name)
+        return (
+            f"Nice to meet you, {name}!\n\n"
+            f"Pick a 4-digit PIN to secure your account."
+        )
+
+    # Awaiting PIN (after name)
+    if state and state.startswith("awaiting_pin:"):
+        pin = msg.strip()
+        name = state.split(":", 1)[1]
+        if not pin.isdigit() or len(pin) < 4:
+            return f"PIN must be at least 4 digits. Try again."
+        clear_user_state(phone)
+        return do_create_wallet(name, pin, phone)
+
+    # ═══════════════════════════════════════════
+    # EXISTING USER FLOW
+    # ═══════════════════════════════════════════
+
+    # Payment flow states
     if state == "awaiting_send_amount_and_phone":
         sp = msg.replace(",", "").split()
         if len(sp) >= 2:
@@ -922,55 +819,69 @@ def handle_message(message, phone, media_url=None, media_type=None):
             return do_withdraw(phone, amount)
         return resp_error("Enter the amount.\nExample: 500")
 
-    # Menu numbers
-    if lower == "1":
+    # Menu numbers (existing users only)
+    users = load_users()
+    _, user = find_user(users, phone)
+
+    if lower == "1" and user:
         clear_user_state(phone)
         return do_balance(phone)
-    if lower == "2":
+    if lower == "2" and user:
         set_user_state(phone, "awaiting_send_amount_and_phone")
         return resp_send_prompt()
-    if lower == "3":
+    if lower == "3" and user:
         set_user_state(phone, "awaiting_deposit_amount")
         return resp_deposit_prompt()
-    if lower == "4":
+    if lower == "4" and user:
         set_user_state(phone, "awaiting_withdraw_amount")
         return resp_withdraw_prompt()
-    if lower == "5":
+    if lower == "5" and user:
         clear_user_state(phone)
-        users = load_users()
-        _, user = find_user(users, phone)
-        return resp_history(user["public_key"]) if user else resp_welcome()
+        return resp_history(user["public_key"])
     if lower in ["6", "help"]:
         clear_user_state(phone)
         return resp_help()
-    if lower == "7":
-        users = load_users()
-        _, user = find_user(users, phone)
-        if not user:
-            return resp_welcome()
+    if lower == "7" and user:
         kyc = user.get("kyc_status", "unverified")
         if kyc == "unverified":
             set_user_state(phone, "awaiting_kyc_selfie")
-        return resp_kyc_intro(kyc)
+            return (
+                f"To verify your account, send me:\n\n"
+                f"1. A selfie\n"
+                f"2. A photo of your SA ID or Passport\n\n"
+                f"Send your selfie first."
+            )
+        elif kyc == "pending":
+            return f"Your verification is being reviewed. We'll WhatsApp you once it's done."
+        else:
+            return f"Your account is already verified!"
 
-    # Quick exact matches
-    if lower in ["hi", "hello", "hey", "start"]:
+    # Greeting
+    if lower in ["hi", "hello", "hey", "start", "yebo", "howzit", "heita"]:
         clear_user_state(phone)
-        users = load_users()
-        _, user = find_user(users, phone)
         if user:
             kyc = user.get("kyc_status", "unverified")
             return resp_menu(user["name"], kyc)
-        return resp_welcome()
-    if lower in ["balance", "bal"]:
+        # Not registered — check KYC status
+        kyc = get_kyc_by_phone(phone)
+        if kyc and kyc["status"] == "approved":
+            set_user_state(phone, "awaiting_name")
+            return resp_kyc_approved()
+        elif kyc and kyc["status"] == "pending":
+            return resp_kyc_pending()
+        elif kyc and kyc["status"] == "rejected":
+            set_user_state(phone, "awaiting_kyc_selfie")
+            return resp_kyc_rejected(kyc.get("notes", ""))
+        else:
+            set_user_state(phone, "awaiting_kyc_selfie")
+            return resp_new_user()
+
+    if lower in ["balance", "bal"] and user:
         clear_user_state(phone)
         return do_balance(phone)
 
     # ─── AI BRAIN ───
-    users = load_users()
-    _, user = find_user(users, phone)
     user_name = user["name"] if user else None
-
     intent = ai_understand(msg, user_name)
 
     if intent:
@@ -981,13 +892,24 @@ def handle_message(message, phone, media_url=None, media_type=None):
             if user:
                 kyc = user.get("kyc_status", "unverified")
                 return resp_menu(user["name"], kyc)
-            return resp_welcome()
+            kyc = get_kyc_by_phone(phone)
+            if kyc and kyc["status"] == "approved":
+                set_user_state(phone, "awaiting_name")
+                return resp_kyc_approved()
+            elif kyc and kyc["status"] == "pending":
+                return resp_kyc_pending()
+            elif kyc and kyc["status"] == "rejected":
+                set_user_state(phone, "awaiting_kyc_selfie")
+                return resp_kyc_rejected(kyc.get("notes", ""))
+            else:
+                set_user_state(phone, "awaiting_kyc_selfie")
+                return resp_new_user()
 
-        if action == "balance":
+        if action == "balance" and user:
             clear_user_state(phone)
             return do_balance(phone)
 
-        if action == "send":
+        if action == "send" and user:
             amount = intent.get("amount", 0)
             to_phone = intent.get("phone", "")
             if amount > 0 and to_phone:
@@ -998,14 +920,14 @@ def handle_message(message, phone, media_url=None, media_type=None):
             set_user_state(phone, "awaiting_send_amount_and_phone")
             return resp_send_prompt()
 
-        if action == "deposit":
+        if action == "deposit" and user:
             amount = intent.get("amount", 0)
             if amount > 0:
                 return do_deposit(phone, str(amount))
             set_user_state(phone, "awaiting_deposit_amount")
             return resp_deposit_prompt()
 
-        if action == "withdraw":
+        if action == "withdraw" and user:
             amount = intent.get("amount", 0)
             if amount > 0:
                 return do_withdraw(phone, str(amount))
@@ -1013,42 +935,53 @@ def handle_message(message, phone, media_url=None, media_type=None):
             return resp_withdraw_prompt()
 
         if action == "verify":
-            if not user:
-                return resp_welcome()
-            kyc = user.get("kyc_status", "unverified")
-            if kyc == "unverified":
-                set_user_state(phone, "awaiting_kyc_selfie")
-            return resp_kyc_intro(kyc)
-
-        if action == "register":
-            name = intent.get("name", "")
-            pin = intent.get("pin", "")
-            if name and pin:
-                return do_register(["register", name, pin], phone)
-            elif name:
-                return f"Almost there! What PIN?\n\nSend: register {name} 1234"
-            return resp_error("Send: register YourName 1234")
+            if user:
+                kyc = user.get("kyc_status", "unverified")
+                if kyc == "unverified":
+                    set_user_state(phone, "awaiting_kyc_selfie")
+                    return (
+                        f"To verify your account, send me:\n\n"
+                        f"1. A selfie\n"
+                        f"2. A photo of your SA ID or Passport\n\n"
+                        f"Send your selfie first."
+                    )
+                elif kyc == "pending":
+                    return f"Your verification is being reviewed."
+                else:
+                    return f"Your account is already verified!"
+            else:
+                kyc = get_kyc_by_phone(phone)
+                if kyc and kyc["status"] == "approved":
+                    set_user_state(phone, "awaiting_name")
+                    return resp_kyc_approved()
+                elif kyc and kyc["status"] == "pending":
+                    return resp_kyc_pending()
+                else:
+                    set_user_state(phone, "awaiting_kyc_selfie")
+                    return resp_new_user()
 
         if action == "help":
             clear_user_state(phone)
             return resp_help()
 
-        if action == "history":
+        if action == "history" and user:
             clear_user_state(phone)
-            return resp_history(user["public_key"]) if user else resp_welcome()
+            return resp_history(user["public_key"])
 
     # Nothing worked
     clear_user_state(phone)
-    return (
-        f"I'm not sure what you mean.\n\n"
-        f"Just tell me what you need:\n"
-        f"  \"Check my balance\"\n"
-        f"  \"Send money\"\n"
-        f"  \"Deposit 500\"\n"
-        f"  \"Take out 200\"\n"
-        f"  \"Verify my account\"\n\n"
-        f"Or send hi for the menu."
-    )
+    if user:
+        return (
+            f"I'm not sure what you mean.\n\n"
+            f"Just tell me what you need:\n"
+            f"  \"Check my balance\"\n"
+            f"  \"Send money\"\n"
+            f"  \"Deposit 500\"\n\n"
+            f"Or send hi for the menu."
+        )
+    else:
+        set_user_state(phone, "awaiting_kyc_selfie")
+        return resp_new_user()
 
 
 # ─── Webhooks ───
@@ -1057,15 +990,12 @@ def handle_message(message, phone, media_url=None, media_type=None):
 def webhook_twilio():
     msg = request.form.get("Body", "").strip()
     phone = request.form.get("From", "").replace("whatsapp:", "")
-
-    # Check for media (images)
     num_media = int(request.form.get("NumMedia", 0))
     media_url = None
     media_type = None
     if num_media > 0:
         media_url = request.form.get("MediaUrl0", "")
         media_type = request.form.get("MediaContentType0", "")
-
     response = handle_message(msg, phone, media_url, media_type)
     from twilio.twiml.messaging_response import MessagingResponse
     resp = MessagingResponse()
@@ -1081,8 +1011,6 @@ def webhook_360dialog():
     try:
         msg = data["messages"][0]["text"]["body"]
         phone = data["messages"][0]["from"]
-
-        # Check for media
         media_url = None
         media_type = None
         if "image" in data["messages"][0]:
@@ -1097,22 +1025,17 @@ def webhook_360dialog():
 
 @app.route("/admin/kyc", methods=["GET"])
 def admin_kyc_list():
-    """List all pending KYC submissions."""
     kyc = load_kyc()
     pending = {p: d for p, d in kyc.items() if d["status"] == "pending"}
     return jsonify({"pending": len(pending), "submissions": pending}), 200
 
-
 @app.route("/admin/kyc/approve/<phone>", methods=["POST"])
 def admin_approve(phone):
-    """Approve KYC for a user."""
     approve_kyc(phone)
     return jsonify({"status": "approved", "phone": phone}), 200
 
-
 @app.route("/admin/kyc/reject/<phone>", methods=["POST"])
 def admin_reject(phone):
-    """Reject KYC for a user."""
     reason = request.json.get("reason", "") if request.json else ""
     reject_kyc(phone, reason)
     return jsonify({"status": "rejected", "phone": phone}), 200
@@ -1121,13 +1044,11 @@ def admin_reject(phone):
 @app.route("/health", methods=["GET"])
 def health():
     ai_status = "connected" if GROQ_API_KEY else "no_key"
-    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "4.2", "ai": ai_status, "features": ["escrow", "kyc"]}), 200
-
+    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "4.3", "ai": ai_status, "features": ["escrow", "kyc-first"]}), 200
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"service": "ZakaPay API", "version": "4.2", "status": "running"}), 200
-
+    return jsonify({"service": "ZakaPay API", "version": "4.3", "status": "running"}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

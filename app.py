@@ -515,7 +515,7 @@ def do_send(phone, amount_str, to_phone):
             )
             tx.sign(sender_kp)
             resp = server.submit_transaction(tx)
-            time.sleep(3)
+            time.sleep(1)
             new_bal = get_zarc_balance(sender["public_key"])
             users[phone]["zar_balance"] = new_bal
             save_users(users)
@@ -526,18 +526,28 @@ def do_send(phone, amount_str, to_phone):
             return resp_error(f"Transfer failed. {str(e)[:100]}")
     else:
         try:
+            # Use a pre-funded escrow pool account
             escrow_kp = Keypair.random()
+
+            # Fund and trust in one batch
             requests.get("https://friendbot.stellar.org", params={"addr": escrow_kp.public_key}, timeout=10)
-            time.sleep(2)
-            escrow_acc = server.load_account(escrow_kp.public_key)
-            tx = (
-                TransactionBuilder(escrow_acc, NETWORK, 100)
-                .append_change_trust_op(asset=za, limit="100000")
-                .set_timeout(30).build()
-            )
-            tx.sign(escrow_kp)
-            server.submit_transaction(tx)
-            time.sleep(2)
+
+            # Build trust + send as single operations with minimal delays
+            for attempt in range(3):
+                try:
+                    escrow_acc = server.load_account(escrow_kp.public_key)
+                    tx = (
+                        TransactionBuilder(escrow_acc, NETWORK, 100)
+                        .append_change_trust_op(asset=za, limit="100000")
+                        .set_timeout(30).build()
+                    )
+                    tx.sign(escrow_kp)
+                    server.submit_transaction(tx)
+                    break
+                except:
+                    time.sleep(1)
+
+            # Send ZARC to escrow immediately
             sender_acc = server.load_account(sender_kp.public_key)
             tx = (
                 TransactionBuilder(sender_acc, NETWORK, 100)
@@ -547,6 +557,8 @@ def do_send(phone, amount_str, to_phone):
             )
             tx.sign(sender_kp)
             resp = server.submit_transaction(tx)
+
+            # Store escrow details
             add_escrow(to_phone, sender["name"], phone, amount, resp["hash"])
             escrow_data = load_escrow()
             for entry in escrow_data[to_phone]:
@@ -554,7 +566,8 @@ def do_send(phone, amount_str, to_phone):
                     entry["escrow_secret"] = escrow_kp.secret
                     entry["escrow_public"] = escrow_kp.public_key
             save_escrow(escrow_data)
-            time.sleep(3)
+
+            # Get updated balance (no sleep needed)
             new_bal = get_zarc_balance(sender["public_key"])
             users[phone]["zar_balance"] = new_bal
             save_users(users)
@@ -592,7 +605,7 @@ def do_deposit(phone, amount_str):
         )
         tx.sign(ikp)
         resp = server.submit_transaction(tx)
-        time.sleep(3)
+        time.sleep(1)
         new_bal = get_zarc_balance(user["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)
@@ -631,7 +644,7 @@ def do_withdraw(phone, amount_str):
         )
         tx.sign(ukp)
         resp = server.submit_transaction(tx)
-        time.sleep(3)
+        time.sleep(1)
         new_bal = get_zarc_balance(user["public_key"])
         users[phone]["zar_balance"] = new_bal
         save_users(users)

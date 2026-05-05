@@ -354,7 +354,7 @@ def resp_withdraw_prompt():
         f"How much do you want to withdraw?\n\n"
         f"Just tell me the amount.\n"
         f"Example: 500\n\n"
-        f"Funds arrive in 1-2 business days."
+        f"Instant withdrawal to your bank."
     )
 
 def resp_withdraw_success(amt, bal, tx):
@@ -364,7 +364,7 @@ def resp_withdraw_success(amt, bal, tx):
         f"New balance: R{bal:,.2f}\n\n"
         f"Tx: {tx[:16]}...\n"
         f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
-        f"Funds arrive in 1-2 days. Anything else?"
+        f"Withdrawal complete! Anything else?"
     )
 
 def resp_help():

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ZakaPay v4.3 — KYC-First Registration
-Verify identity (selfie + ID) → Admin approves → Create wallet
+ZakaPay v5.0 — Cross-Border Payments + KYC + Escrow
+Send money anywhere in Africa. R10 flat fee. 5 seconds.
 """
 
 import os
@@ -36,6 +36,20 @@ ZARC_EMBEDDED = {
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
+# Cross-border corridors and rates (testnet demo rates)
+CORRIDORS = {
+    "zimbabwe": {"country": "Zimbabwe", "currency": "USD", "rate": 0.054, "symbol": "USD", "flag": "\U0001f1ff\U0001f1fc"},
+    "tanzania": {"country": "Tanzania", "currency": "TZS", "rate": 290.5, "symbol": "TZS", "flag": "\U0001f1f9\U0001f1ff"},
+    "mozambique": {"country": "Mozambique", "currency": "MZN", "rate": 3.38, "symbol": "MZN", "flag": "\U0001f1f2\U0001f1ff"},
+    "kenya": {"country": "Kenya", "currency": "KES", "rate": 6.95, "symbol": "KES", "flag": "\U0001f1f0\U0001f1ea"},
+    "nigeria": {"country": "Nigeria", "currency": "NGN", "rate": 82.5, "symbol": "NGN", "flag": "\U0001f1f3\U0001f1ec"},
+    "zambia": {"country": "Zambia", "currency": "ZMW", "rate": 1.38, "symbol": "ZMW", "flag": "\U0001f1ff\U0001f1f2"},
+    "malawi": {"country": "Malawi", "currency": "MWK", "rate": 88.2, "symbol": "MWK", "flag": "\U0001f1f2\U0001f1fc"},
+    "ghana": {"country": "Ghana", "currency": "GHS", "rate": 0.68, "symbol": "GHS", "flag": "\U0001f1ec\U0001f1ed"},
+}
+
+CROSS_BORDER_FEE = 10.00  # R10 flat fee
+
 
 def load_env():
     global GROQ_API_KEY
@@ -66,14 +80,25 @@ The user just sent this WhatsApp message. Understand what they want and return O
 Message: "{user_message}"
 
 Possible actions:
-{{"action":"greeting"}} — hi, yebo, heita, howzit, hello, hey, sawubona, dumela, what's up
-{{"action":"balance"}} — check balance, how much do I have, show my money, what's my balance
+{{"action":"greeting"}} — hi, yebo, heita, howzit, hello, hey, sawubona, dumela
+{{"action":"balance"}} — check balance, how much do I have, show my money
 {{"action":"send","amount":<number>,"phone":"<phone or empty>"}} — send money, transfer, pay someone
-{{"action":"deposit","amount":<number>}} — deposit, put money in, load money, add funds, cash in, top up
-{{"action":"withdraw","amount":<number>}} — withdraw, take out, cash out, pull out, get money out
-{{"action":"verify"}} — verify, kyc, fica, verify my account, id verification, confirm identity
+{{"action":"deposit","amount":<number>}} — deposit, put money in, load money, cash in, top up
+{{"action":"withdraw","amount":<number>}} — withdraw, take out, cash out, pull out
+{{"action":"crossborder","amount":<number>,"country":"<country or empty>"}} — send money abroad, send to zimbabwe, send to tanzania, international transfer, remit, cross border, send money home, send to my family in africa
+{{"action":"verify"}} — verify, kyc, fica, verify my account
 {{"action":"help"}} — what can you do, help, how does this work
-{{"action":"history"}} — transactions, history, statement, past payments
+{{"action":"history"}} — transactions, history, statement
+
+Rules:
+- "send money to zimbabwe" → {{"action":"crossborder","amount":0,"country":"zimbabwe"}}
+- "send 500 to tanzania" → {{"action":"crossborder","amount":500,"country":"tanzania"}}
+- "remit 1000" → {{"action":"crossborder","amount":1000,"country":""}}
+- "send money to my family in mozambique" → {{"action":"crossborder","amount":0,"country":"mozambique"}}
+- "cross border transfer" → {{"action":"crossborder","amount":0,"country":""}}
+- "take out 1000" → {{"action":"withdraw","amount":1000}}
+- "send R500 to +27820000001" → {{"action":"send","amount":500,"phone":"+27820000001"}}
+- "check my balance" → {{"action":"balance"}}
 
 Return ONLY the JSON. Nothing else."""
     try:
@@ -230,20 +255,14 @@ def save_kyc(kyc):
         json.dump(kyc, f, indent=2)
 
 def get_kyc_by_phone(phone):
-    kyc = load_kyc()
-    return kyc.get(phone, None)
+    return load_kyc().get(phone, None)
 
 def save_kyc_submission(phone, selfie_url, id_url):
     kyc = load_kyc()
     kyc[phone] = {
-        "phone": phone,
-        "selfie_url": selfie_url,
-        "id_url": id_url,
-        "status": "pending",
-        "submitted_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "reviewed_at": None,
-        "reviewed_by": None,
-        "notes": ""
+        "phone": phone, "selfie_url": selfie_url, "id_url": id_url,
+        "status": "pending", "submitted_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "reviewed_at": None, "reviewed_by": None, "notes": ""
     }
     save_kyc(kyc)
     return kyc[phone]
@@ -255,7 +274,6 @@ def approve_kyc(phone, reviewer="admin"):
         kyc[phone]["reviewed_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
         kyc[phone]["reviewed_by"] = reviewer
         save_kyc(kyc)
-    # Also update user if already registered
     users = load_users()
     _, user = find_user(users, phone)
     if user:
@@ -279,7 +297,7 @@ def reject_kyc(phone, reason="", reviewer="admin"):
 def resp_menu(name, kyc_status="unverified"):
     verify_option = ""
     if kyc_status == "unverified":
-        verify_option = "\n7. Verify My Account"
+        verify_option = "\n8. Verify My Account"
     return (
         f"Hey {name}!\n\n"
         f"What can I do for you?\n\n"
@@ -287,8 +305,9 @@ def resp_menu(name, kyc_status="unverified"):
         f"2. Send Money\n"
         f"3. Deposit (Bank \u2192 ZakaPay)\n"
         f"4. Withdraw (ZakaPay \u2192 Bank)\n"
-        f"5. Transaction History\n"
-        f"6. Help"
+        f"5. Send Money Abroad\n"
+        f"6. Transaction History\n"
+        f"7. Help"
         f"{verify_option}\n\n"
         f"Or just tell me what you need!"
     )
@@ -375,7 +394,10 @@ def resp_help():
         f"  \"Send R100 to +27820000002\"\n"
         f"  \"I want to deposit 500\"\n"
         f"  \"Take out 200\"\n"
+        f"  \"Send money to Zimbabwe\"\n"
+        f"  \"Send 1000 to Tanzania\"\n"
         f"  \"Show my transactions\"\n\n"
+        f"Cross-border: R10 flat fee. 5 seconds. Anywhere in Africa.\n\n"
         f"Support: ngeli@zakapay.africa"
     )
 
@@ -390,10 +412,60 @@ def resp_error(msg):
     return f"Hmm, something went wrong.\n\n{msg}\n\nTry again or send hi for the menu."
 
 
-# ─── KYC-First Registration Responses ───
+# ─── Cross-Border Responses ───
+
+def resp_crossborder_prompt():
+    corridors = "\n".join([f"  {v['flag']} {v['country']}" for v in CORRIDORS.values()])
+    return (
+        f"Send money anywhere in Africa!\n\n"
+        f"R10 flat fee. Arrives in 5 seconds.\n\n"
+        f"Where are you sending?\n\n"
+        f"{corridors}\n\n"
+        f"Just tell me the country name."
+    )
+
+def resp_crossborder_amount(country_info):
+    return (
+        f"Sending to {country_info['flag']} {country_info['country']}.\n\n"
+        f"How much do you want to send (in Rands)?\n\n"
+        f"Example: 1000\n\n"
+        f"Fee: R10.00 flat\n"
+        f"Rate: R1 = {country_info['rate']} {country_info['currency']}"
+    )
+
+def resp_crossborder_confirm(amount, country_info):
+    fee = CROSS_BORDER_FEE
+    total = amount + fee
+    converted = (amount - fee) * country_info["rate"]
+    return (
+        f"Confirm cross-border transfer:\n\n"
+        f"  Sending: R{amount:,.2f}\n"
+        f"  Fee: R{fee:,.2f}\n"
+        f"  Total: R{total:,.2f}\n\n"
+        f"  They receive: {country_info['symbol']} {converted:,.2f}\n"
+        f"  Destination: {country_info['flag']} {country_info['country']}\n\n"
+        f"Reply YES to confirm or NO to cancel."
+    )
+
+def resp_crossborder_success(amount, country_info, bal, tx):
+    fee = CROSS_BORDER_FEE
+    converted = (amount - fee) * country_info["rate"]
+    return (
+        f"Cross-border transfer sent!\n\n"
+        f"  R{amount:,.2f} \u2192 {country_info['flag']} {country_info['country']}\n"
+        f"  They receive: {country_info['symbol']} {converted:,.2f}\n"
+        f"  Fee: R{fee:,.2f}\n"
+        f"  Your balance: R{bal:,.2f}\n\n"
+        f"  Arrives in 5 seconds.\n\n"
+        f"Tx: {tx[:16]}...\n"
+        f"https://stellar.expert/explorer/testnet/tx/{tx}\n\n"
+        f"Anything else?"
+    )
+
+
+# ─── KYC Responses ───
 
 def resp_new_user():
-    """First message for a brand new user — start KYC."""
     return (
         f"Hey! Welcome to ZakaPay.\n\n"
         f"I help you send and receive money through WhatsApp.\n\n"
@@ -403,7 +475,6 @@ def resp_new_user():
     )
 
 def resp_kyc_selfie_received():
-    """Selfie received, now ask for ID."""
     return (
         f"Selfie received!\n\n"
         f"Step 2: Send me a photo of your SA ID or Passport.\n"
@@ -411,7 +482,6 @@ def resp_kyc_selfie_received():
     )
 
 def resp_kyc_submitted():
-    """Both photos received, submission complete."""
     return (
         f"Verification submitted!\n\n"
         f"We'll review your documents within 24 hours.\n"
@@ -420,7 +490,6 @@ def resp_kyc_submitted():
     )
 
 def resp_kyc_pending():
-    """User comes back but KYC still pending."""
     return (
         f"Welcome back!\n\n"
         f"Your verification is still being reviewed.\n"
@@ -429,22 +498,17 @@ def resp_kyc_pending():
     )
 
 def resp_kyc_approved():
-    """KYC approved — now start registration."""
     return (
-        f"Great news — you're verified!\n\n"
+        f"Great news \u2014 you're verified!\n\n"
         f"Now let's create your wallet.\n"
         f"What should I call you?"
     )
 
 def resp_kyc_rejected(reason=""):
-    """KYC rejected — try again."""
     msg = f"Verification couldn't be completed.\n\n"
     if reason:
         msg += f"Reason: {reason}\n\n"
-    msg += (
-        f"Let's try again.\n\n"
-        f"Send me a clear selfie."
-    )
+    msg += f"Let's try again.\n\nSend me a clear selfie."
     return msg
 
 def resp_registered(name, pk, pending=None):
@@ -460,12 +524,15 @@ def resp_registered(name, pk, pending=None):
             msg += f"  \u2022 {sender}\n"
         msg += f"\nTotal: R{pending['total']:,.2f}\n\n"
         msg += f"Your balance: R{100 + pending['total']:,.2f}\n\n"
-    msg += f"What would you like to do?\n\n"
-    msg += f"  \u2022 Check your balance\n"
-    msg += f"  \u2022 Send money\n"
-    msg += f"  \u2022 Deposit from your bank\n"
-    msg += f"  \u2022 Withdraw to your bank\n\n"
-    msg += f"Just tell me what you need!"
+    msg += (
+        f"What would you like to do?\n\n"
+        f"  \u2022 Check your balance\n"
+        f"  \u2022 Send money\n"
+        f"  \u2022 Deposit from your bank\n"
+        f"  \u2022 Withdraw to your bank\n"
+        f"  \u2022 Send money abroad\n\n"
+        f"Just tell me what you need!"
+    )
     return msg
 
 
@@ -526,13 +593,8 @@ def do_send(phone, amount_str, to_phone):
             return resp_error(f"Transfer failed. {str(e)[:100]}")
     else:
         try:
-            # Use a pre-funded escrow pool account
             escrow_kp = Keypair.random()
-
-            # Fund and trust in one batch
             requests.get("https://friendbot.stellar.org", params={"addr": escrow_kp.public_key}, timeout=10)
-
-            # Build trust + send as single operations with minimal delays
             for attempt in range(3):
                 try:
                     escrow_acc = server.load_account(escrow_kp.public_key)
@@ -546,8 +608,6 @@ def do_send(phone, amount_str, to_phone):
                     break
                 except:
                     time.sleep(1)
-
-            # Send ZARC to escrow immediately
             sender_acc = server.load_account(sender_kp.public_key)
             tx = (
                 TransactionBuilder(sender_acc, NETWORK, 100)
@@ -557,8 +617,6 @@ def do_send(phone, amount_str, to_phone):
             )
             tx.sign(sender_kp)
             resp = server.submit_transaction(tx)
-
-            # Store escrow details
             add_escrow(to_phone, sender["name"], phone, amount, resp["hash"])
             escrow_data = load_escrow()
             for entry in escrow_data[to_phone]:
@@ -566,8 +624,6 @@ def do_send(phone, amount_str, to_phone):
                     entry["escrow_secret"] = escrow_kp.secret
                     entry["escrow_public"] = escrow_kp.public_key
             save_escrow(escrow_data)
-
-            # Get updated balance (no sleep needed)
             new_bal = get_zarc_balance(sender["public_key"])
             users[phone]["zar_balance"] = new_bal
             save_users(users)
@@ -576,6 +632,54 @@ def do_send(phone, amount_str, to_phone):
         except Exception as e:
             clear_user_state(phone)
             return resp_error(f"Transfer failed. {str(e)[:100]}")
+
+
+def do_crossborder(phone, amount, country_key):
+    """Execute cross-border transfer via Stellar DEX."""
+    users = load_users()
+    _, sender = find_user(users, phone)
+    if not sender:
+        clear_user_state(phone)
+        return None
+
+    country_info = CORRIDORS.get(country_key)
+    if not country_info:
+        clear_user_state(phone)
+        return resp_error(f"Unknown country: {country_key}")
+
+    fee = CROSS_BORDER_FEE
+    total = amount + fee
+    zar = get_zarc_balance(sender["public_key"])
+
+    if zar < total:
+        clear_user_state(phone)
+        return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}\nNeed: R{total:,.2f} (includes R{fee:.2f} fee)")
+
+    sender_kp = Keypair.from_secret(sender["secret_encrypted"])
+    zarc = load_zarc()
+    za = Asset(zarc["asset_code"], zarc["issuer_public"])
+
+    try:
+        # Send ZARC to distribution account (simulates DEX swap + delivery)
+        acc = server.load_account(sender_kp.public_key)
+        converted = (amount - fee) * country_info["rate"]
+        tx = (
+            TransactionBuilder(acc, NETWORK, 100)
+            .add_text_memo(f"ZP:XBorder:{country_info['country'][:8]}:{converted:.0f}{country_info['currency']}")
+            .append_payment_op(destination=zarc["distribution_public"], amount=f"{total:.2f}", asset=za)
+            .set_timeout(30).build()
+        )
+        tx.sign(sender_kp)
+        resp = server.submit_transaction(tx)
+        time.sleep(1)
+        new_bal = get_zarc_balance(sender["public_key"])
+        users[phone]["zar_balance"] = new_bal
+        save_users(users)
+        clear_user_state(phone)
+        return resp_crossborder_success(amount, country_info, new_bal, resp["hash"])
+    except Exception as e:
+        clear_user_state(phone)
+        return resp_error(f"Transfer failed. {str(e)[:100]}")
 
 
 def do_deposit(phone, amount_str):
@@ -656,7 +760,6 @@ def do_withdraw(phone, amount_str):
 
 
 def do_create_wallet(name, pin, phone):
-    """Create wallet after KYC approval."""
     users = load_users()
     _, existing = find_user(users, phone)
     if existing:
@@ -690,7 +793,6 @@ def do_create_wallet(name, pin, phone):
         save_users(users)
     except Exception as e:
         print(f"ZARC error: {e}")
-
     pending = claim_escrow(phone, name)
     if pending:
         zarc = load_zarc()
@@ -720,7 +822,6 @@ def do_create_wallet(name, pin, phone):
             users[phone]["zar_balance"] = new_bal
             save_users(users)
             pending["total"] = total_received
-
     return resp_registered(name, kp.public_key, pending)
 
 
@@ -731,7 +832,6 @@ def handle_message(message, phone, media_url=None, media_type=None):
     lower = msg.lower()
     parts = msg.split()
 
-    # Quick shortcuts for existing users
     if lower in ["0", "menu", "back"]:
         clear_user_state(phone)
         users = load_users()
@@ -739,7 +839,6 @@ def handle_message(message, phone, media_url=None, media_type=None):
         if user:
             kyc = user.get("kyc_status", "unverified")
             return resp_menu(user["name"], kyc)
-        # Not registered — check KYC
         kyc = get_kyc_by_phone(phone)
         if kyc and kyc["status"] == "approved":
             set_user_state(phone, "awaiting_name")
@@ -753,44 +852,31 @@ def handle_message(message, phone, media_url=None, media_type=None):
             set_user_state(phone, "awaiting_kyc_selfie")
             return resp_new_user()
 
-    # State tracking
     state = get_user_state(phone)
 
-    # ═══════════════════════════════════════════
-    # KYC-FIRST REGISTRATION FLOW (new users)
-    # ═══════════════════════════════════════════
-
-    # Awaiting selfie
+    # ─── KYC Flow ───
     if state == "awaiting_kyc_selfie":
         if media_url and media_type and "image" in media_type:
             set_user_state(phone, "awaiting_kyc_id:" + media_url)
             return resp_kyc_selfie_received()
-        else:
-            return f"Please send a photo (not text).\n\nTake a clear selfie of your face and send it as an image."
+        return f"Please send a photo (not text).\n\nTake a clear selfie of your face and send it as an image."
 
-    # Awaiting ID photo
     if state and state.startswith("awaiting_kyc_id:"):
         if media_url and media_type and "image" in media_type:
             selfie_url = state.split(":", 1)[1]
-            id_url = media_url
-            save_kyc_submission(phone, selfie_url, id_url)
+            save_kyc_submission(phone, selfie_url, media_url)
             clear_user_state(phone)
             return resp_kyc_submitted()
-        else:
-            return f"Please send a photo of your ID or Passport.\n\nTake a clear photo and send it as an image."
+        return f"Please send a photo of your ID or Passport.\n\nTake a clear photo and send it as an image."
 
-    # Awaiting name (after KYC approved)
+    # ─── Registration Flow ───
     if state == "awaiting_name":
         name = msg.strip().title()
         if len(name) < 2 or len(name) > 30:
             return f"Please enter a valid name."
         set_user_state(phone, "awaiting_pin:" + name)
-        return (
-            f"Nice to meet you, {name}!\n\n"
-            f"Pick a 4-digit PIN to secure your account."
-        )
+        return f"Nice to meet you, {name}!\n\nPick a 4-digit PIN to secure your account."
 
-    # Awaiting PIN (after name)
     if state and state.startswith("awaiting_pin:"):
         pin = msg.strip()
         name = state.split(":", 1)[1]
@@ -799,11 +885,7 @@ def handle_message(message, phone, media_url=None, media_type=None):
         clear_user_state(phone)
         return do_create_wallet(name, pin, phone)
 
-    # ═══════════════════════════════════════════
-    # EXISTING USER FLOW
-    # ═══════════════════════════════════════════
-
-    # Payment flow states
+    # ─── Payment Flow States ───
     if state == "awaiting_send_amount_and_phone":
         sp = msg.replace(",", "").split()
         if len(sp) >= 2:
@@ -832,7 +914,40 @@ def handle_message(message, phone, media_url=None, media_type=None):
             return do_withdraw(phone, amount)
         return resp_error("Enter the amount.\nExample: 500")
 
-    # Menu numbers (existing users only)
+    # ─── Cross-Border Flow States ───
+    if state == "awaiting_xborder_country":
+        # Match country name
+        for key, info in CORRIDORS.items():
+            if key in lower or info["country"].lower() in lower:
+                set_user_state(phone, "awaiting_xborder_amount:" + key)
+                return resp_crossborder_amount(info)
+        return resp_error("I didn't recognize that country.\n\nTry: Zimbabwe, Tanzania, Mozambique, Kenya, Nigeria, Zambia, Malawi, Ghana")
+
+    if state and state.startswith("awaiting_xborder_amount:"):
+        country_key = state.split(":")[1]
+        amount_str = lower.replace("r", "").replace(",", "").strip()
+        if amount_str and amount_str.replace(".", "").isdigit():
+            amount = float(amount_str)
+            country_info = CORRIDORS.get(country_key)
+            if not country_info:
+                clear_user_state(phone)
+                return resp_error("Country not found.")
+            set_user_state(phone, "awaiting_xborder_confirm:" + country_key + ":" + str(amount))
+            return resp_crossborder_confirm(amount, country_info)
+        return resp_error("Enter the amount in Rands.\nExample: 1000")
+
+    if state and state.startswith("awaiting_xborder_confirm:"):
+        parts_state = state.split(":")
+        country_key = parts_state[1]
+        amount = float(parts_state[2])
+        if lower in ["yes", "y", "confirm", "ok"]:
+            return do_crossborder(phone, amount, country_key)
+        elif lower in ["no", "n", "cancel"]:
+            clear_user_state(phone)
+            return f"Transfer cancelled.\n\nAnything else?"
+        return f"Reply YES to confirm or NO to cancel."
+
+    # Menu numbers
     users = load_users()
     _, user = find_user(users, phone)
 
@@ -849,23 +964,21 @@ def handle_message(message, phone, media_url=None, media_type=None):
         set_user_state(phone, "awaiting_withdraw_amount")
         return resp_withdraw_prompt()
     if lower == "5" and user:
+        set_user_state(phone, "awaiting_xborder_country")
+        return resp_crossborder_prompt()
+    if lower in ["6", "history"] and user:
         clear_user_state(phone)
         return resp_history(user["public_key"])
-    if lower in ["6", "help"]:
+    if lower in ["7", "help"]:
         clear_user_state(phone)
         return resp_help()
-    if lower == "7" and user:
+    if lower == "8" and user:
         kyc = user.get("kyc_status", "unverified")
         if kyc == "unverified":
             set_user_state(phone, "awaiting_kyc_selfie")
-            return (
-                f"To verify your account, send me:\n\n"
-                f"1. A selfie\n"
-                f"2. A photo of your SA ID or Passport\n\n"
-                f"Send your selfie first."
-            )
+            return f"To verify your account, send me:\n\n1. A selfie\n2. A photo of your SA ID or Passport\n\nSend your selfie first."
         elif kyc == "pending":
-            return f"Your verification is being reviewed. We'll WhatsApp you once it's done."
+            return f"Your verification is being reviewed."
         else:
             return f"Your account is already verified!"
 
@@ -875,7 +988,6 @@ def handle_message(message, phone, media_url=None, media_type=None):
         if user:
             kyc = user.get("kyc_status", "unverified")
             return resp_menu(user["name"], kyc)
-        # Not registered — check KYC status
         kyc = get_kyc_by_phone(phone)
         if kyc and kyc["status"] == "approved":
             set_user_state(phone, "awaiting_name")
@@ -947,17 +1059,24 @@ def handle_message(message, phone, media_url=None, media_type=None):
             set_user_state(phone, "awaiting_withdraw_amount")
             return resp_withdraw_prompt()
 
+        if action == "crossborder" and user:
+            amount = intent.get("amount", 0)
+            country = intent.get("country", "").lower()
+            if country and country in CORRIDORS:
+                if amount > 0:
+                    set_user_state(phone, "awaiting_xborder_confirm:" + country + ":" + str(amount))
+                    return resp_crossborder_confirm(amount, CORRIDORS[country])
+                set_user_state(phone, "awaiting_xborder_amount:" + country)
+                return resp_crossborder_amount(CORRIDORS[country])
+            set_user_state(phone, "awaiting_xborder_country")
+            return resp_crossborder_prompt()
+
         if action == "verify":
             if user:
                 kyc = user.get("kyc_status", "unverified")
                 if kyc == "unverified":
                     set_user_state(phone, "awaiting_kyc_selfie")
-                    return (
-                        f"To verify your account, send me:\n\n"
-                        f"1. A selfie\n"
-                        f"2. A photo of your SA ID or Passport\n\n"
-                        f"Send your selfie first."
-                    )
+                    return f"To verify your account, send me:\n\n1. A selfie\n2. A photo of your SA ID or Passport\n\nSend your selfie first."
                 elif kyc == "pending":
                     return f"Your verification is being reviewed."
                 else:
@@ -989,6 +1108,7 @@ def handle_message(message, phone, media_url=None, media_type=None):
             f"Just tell me what you need:\n"
             f"  \"Check my balance\"\n"
             f"  \"Send money\"\n"
+            f"  \"Send money to Zimbabwe\"\n"
             f"  \"Deposit 500\"\n\n"
             f"Or send hi for the menu."
         )
@@ -1034,7 +1154,7 @@ def webhook_360dialog():
     return jsonify({"reply": handle_message(msg, phone, media_url, media_type)}), 200
 
 
-# ─── Admin KYC Endpoints ───
+# ─── Admin ───
 
 @app.route("/admin", methods=["GET"])
 def admin_dashboard():
@@ -1061,11 +1181,11 @@ def admin_reject(phone):
 @app.route("/health", methods=["GET"])
 def health():
     ai_status = "connected" if GROQ_API_KEY else "no_key"
-    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "4.3", "ai": ai_status, "features": ["escrow", "kyc-first"]}), 200
+    return jsonify({"status": "ok", "service": "ZakaPay API", "version": "5.0", "ai": ai_status, "features": ["escrow", "kyc-first", "cross-border"]}), 200
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"service": "ZakaPay API", "version": "4.3", "status": "running"}), 200
+    return jsonify({"service": "ZakaPay API", "version": "5.0", "status": "running"}), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

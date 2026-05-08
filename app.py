@@ -50,6 +50,26 @@ CORRIDORS = {
 
 CROSS_BORDER_FEE = 10.00  # R10 flat fee
 
+# Phone prefix to country mapping
+PHONE_PREFIXES = {
+    "+263": "zimbabwe",
+    "+255": "tanzania",
+    "+258": "mozambique",
+    "+254": "kenya",
+    "+234": "nigeria",
+    "+260": "zambia",
+    "+265": "malawi",
+    "+233": "ghana",
+}
+
+def detect_country_from_phone(phone):
+    """Detect African country from phone number prefix."""
+    # Sort by length (longest first) to match correctly
+    for prefix in sorted(PHONE_PREFIXES.keys(), key=len, reverse=True):
+        if phone.startswith(prefix):
+            return PHONE_PREFIXES[prefix]
+    return None
+
 
 def load_env():
     global GROQ_API_KEY
@@ -433,17 +453,19 @@ def resp_crossborder_amount(country_info):
         f"Rate: R1 = {country_info['rate']} {country_info['currency']}"
     )
 
-def resp_crossborder_confirm(amount, country_info):
+def resp_crossborder_confirm(amount, country_info, recipient_phone=""):
     fee = CROSS_BORDER_FEE
     total = amount + fee
     converted = (amount - fee) * country_info["rate"]
+    to_line = f"  To: {recipient_phone}\n" if recipient_phone else ""
     return (
         f"Confirm cross-border transfer:\n\n"
         f"  Sending: R{amount:,.2f}\n"
         f"  Fee: R{fee:,.2f}\n"
         f"  Total: R{total:,.2f}\n\n"
         f"  They receive: {country_info['symbol']} {converted:,.2f}\n"
-        f"  Destination: {country_info['flag']} {country_info['country']}\n\n"
+        f"  Destination: {country_info['flag']} {country_info['country']}\n"
+        f"{to_line}\n"
         f"Reply YES to confirm or NO to cancel."
     )
 
@@ -634,7 +656,7 @@ def do_send(phone, amount_str, to_phone):
             return resp_error(f"Transfer failed. {str(e)[:100]}")
 
 
-def do_crossborder(phone, amount, country_key):
+def do_crossborder(phone, amount, country_key, recipient_phone=""):
     """Execute cross-border transfer via Stellar DEX."""
     users = load_users()
     _, sender = find_user(users, phone)
@@ -920,15 +942,47 @@ def handle_message(message, phone, media_url=None, media_type=None):
 
     # ─── Cross-Border Flow States ───
     if state == "awaiting_xborder_country":
-        # Match country name
+        # Try to detect country from phone number in the message
+        detected_phone = None
+        detected_country = None
+        for word in msg.replace(" ", "").split():
+            clean = word.strip()
+            if clean.startswith("+") or clean.startswith("2"):
+                if not clean.startswith("+"):
+                    clean = "+" + clean
+                country = detect_country_from_phone(clean)
+                if country:
+                    detected_phone = clean
+                    detected_country = country
+                    break
+
+        if detected_country:
+            country_info = CORRIDORS[detected_country]
+            set_user_state(phone, "awaiting_xborder_amount:" + detected_country + ":" + (detected_phone or ""))
+            return (
+                f"{country_info['flag']} {country_info['country']} detected from {detected_phone}\n\n"
+                f"How much do you want to send (in Rands)?\n\n"
+                f"Example: 1000\n\n"
+                f"Fee: R10.00 flat\n"
+                f"Rate: R1 = {country_info['rate']} {country_info['currency']}"
+            )
+
+        # Try matching by country name
         for key, info in CORRIDORS.items():
             if key in lower or info["country"].lower() in lower:
-                set_user_state(phone, "awaiting_xborder_amount:" + key)
+                set_user_state(phone, "awaiting_xborder_amount:" + key + ":")
                 return resp_crossborder_amount(info)
-        return resp_error("I didn't recognize that country.\n\nTry: Zimbabwe, Tanzania, Mozambique, Kenya, Nigeria, Zambia, Malawi, Ghana")
+
+        return (
+            f"I need a phone number to detect the country.\n\n"
+            f"Example: +263771234567 (Zimbabwe)\n"
+            f"Or tell me the country name: Zimbabwe, Tanzania, etc."
+        )
 
     if state and state.startswith("awaiting_xborder_amount:"):
-        country_key = state.split(":")[1]
+        parts_state = state.split(":")
+        country_key = parts_state[1]
+        recipient_phone = parts_state[2] if len(parts_state) > 2 else ""
         amount_str = lower.replace("r", "").replace(",", "").strip()
         if amount_str and amount_str.replace(".", "").isdigit():
             amount = float(amount_str)
@@ -936,16 +990,17 @@ def handle_message(message, phone, media_url=None, media_type=None):
             if not country_info:
                 clear_user_state(phone)
                 return resp_error("Country not found.")
-            set_user_state(phone, "awaiting_xborder_confirm:" + country_key + ":" + str(amount))
-            return resp_crossborder_confirm(amount, country_info)
+            set_user_state(phone, "awaiting_xborder_confirm:" + country_key + ":" + str(amount) + ":" + recipient_phone)
+            return resp_crossborder_confirm(amount, country_info, recipient_phone)
         return resp_error("Enter the amount in Rands.\nExample: 1000")
 
     if state and state.startswith("awaiting_xborder_confirm:"):
         parts_state = state.split(":")
         country_key = parts_state[1]
         amount = float(parts_state[2])
+        recipient_phone = parts_state[3] if len(parts_state) > 3 else ""
         if lower in ["yes", "y", "confirm", "ok"]:
-            return do_crossborder(phone, amount, country_key)
+            return do_crossborder(phone, amount, country_key, recipient_phone)
         elif lower in ["no", "n", "cancel"]:
             clear_user_state(phone)
             return f"Transfer cancelled.\n\nAnything else?"
@@ -1066,11 +1121,26 @@ def handle_message(message, phone, media_url=None, media_type=None):
         if action == "crossborder" and user:
             amount = intent.get("amount", 0)
             country = intent.get("country", "").lower()
+            # Try to detect country from phone number in original message
+            detected_phone = None
+            for word in msg.replace(" ", "").split():
+                clean = word.strip()
+                if clean.startswith("+") or (clean.startswith("2") and len(clean) > 9):
+                    if not clean.startswith("+"):
+                        clean = "+" + clean
+                    detected = detect_country_from_phone(clean)
+                    if detected:
+                        country = detected
+                        detected_phone = clean
+                        break
             if country and country in CORRIDORS:
-                if amount > 0:
+                if amount > 0 and detected_phone:
+                    set_user_state(phone, "awaiting_xborder_confirm:" + country + ":" + str(amount) + ":" + detected_phone)
+                    return resp_crossborder_confirm(amount, CORRIDORS[country], detected_phone)
+                elif amount > 0:
                     set_user_state(phone, "awaiting_xborder_confirm:" + country + ":" + str(amount))
                     return resp_crossborder_confirm(amount, CORRIDORS[country])
-                set_user_state(phone, "awaiting_xborder_amount:" + country)
+                set_user_state(phone, "awaiting_xborder_amount:" + country + ":" + (detected_phone or ""))
                 return resp_crossborder_amount(CORRIDORS[country])
             set_user_state(phone, "awaiting_xborder_country")
             return resp_crossborder_prompt()

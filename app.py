@@ -665,7 +665,7 @@ def do_crossborder(phone, amount, country_key):
         converted = (amount - fee) * country_info["rate"]
         tx = (
             TransactionBuilder(acc, NETWORK, 100)
-            .add_text_memo(f"ZP:XBorder:{country_info['country'][:8]}:{converted:.0f}{country_info['currency']}")
+            .add_text_memo(f"ZP:XB:{country_key[:3].upper()}:{amount:.0f}")
             .append_payment_op(destination=zarc["distribution_public"], amount=f"{total:.2f}", asset=za)
             .set_timeout(30).build()
         )
@@ -679,7 +679,11 @@ def do_crossborder(phone, amount, country_key):
         return resp_crossborder_success(amount, country_info, new_bal, resp["hash"])
     except Exception as e:
         clear_user_state(phone)
-        return resp_error(f"Transfer failed. {str(e)[:100]}")
+        error_msg = str(e)
+        if "op_underfunded" in error_msg:
+            return resp_error("Not enough funds for this transfer.")
+        else:
+            return resp_error(f"Transfer failed. {error_msg[:150]}")
 
 
 def do_deposit(phone, amount_str):

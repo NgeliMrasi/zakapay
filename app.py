@@ -64,11 +64,15 @@ PHONE_PREFIXES = {
 
 def detect_country_from_phone(phone):
     """Detect African country from phone number prefix."""
-    # Sort by length (longest first) to match correctly
     for prefix in sorted(PHONE_PREFIXES.keys(), key=len, reverse=True):
         if phone.startswith(prefix):
             return PHONE_PREFIXES[prefix]
     return None
+
+def is_sa_number(phone):
+    """Check if phone number is South African."""
+    clean = phone.replace(" ", "").replace("-", "")
+    return clean.startswith("+27")
 
 
 def load_env():
@@ -585,6 +589,18 @@ def do_send(phone, amount_str, to_phone):
         return resp_error("I couldn't read that amount.")
     if not to_phone.startswith("+"):
         to_phone = "+" + to_phone
+
+    # Check if this is a foreign number — route to cross-border
+    if not is_sa_number(to_phone):
+        country = detect_country_from_phone(to_phone)
+        if country and country in CORRIDORS:
+            country_info = CORRIDORS[country]
+            clear_user_state(phone)
+            set_user_state(phone, "awaiting_xborder_confirm:" + country + ":" + str(amount) + ":" + to_phone)
+            return resp_crossborder_confirm(amount, country_info, to_phone)
+        else:
+            clear_user_state(phone)
+            return resp_error(f"International transfers to this number are not supported yet.\n\nSupported: Zimbabwe, Tanzania, Mozambique, Kenya, Nigeria, Zambia, Malawi, Ghana")
     zar = get_zarc_balance(sender["public_key"])
     if zar < amount:
         clear_user_state(phone)

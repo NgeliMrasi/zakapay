@@ -160,8 +160,11 @@ def load_state():
         return {}
 
 def save_state(states):
-    with open(STATE_FILE, "w") as f:
-        json.dump(states, f, indent=2)
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(states, f, indent=2)
+    except Exception as e:
+        print(f"STATE SAVE ERROR: {e}")
 
 def get_user_state(phone):
     return load_state().get(phone)
@@ -187,8 +190,11 @@ def load_users():
         return {}
 
 def save_users(users):
-    with open(DB_FILE, "w") as f:
-        json.dump(users, f, indent=2)
+    try:
+        with open(DB_FILE, "w") as f:
+            json.dump(users, f, indent=2)
+    except Exception as e:
+        print(f"DB SAVE ERROR: {e}")
 
 def load_zarc():
     return ZARC_EMBEDDED
@@ -219,6 +225,17 @@ def get_zarc_balance(public_key):
         pass
     return 0.0
 
+def stellar_safe(func, *args, **kwargs):
+    """Execute a Stellar operation with retry logic."""
+    for attempt in range(3):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print(f"Stellar attempt {attempt+1} failed: {e}")
+            if attempt == 2:
+                raise
+            time.sleep(2)
+
 def find_user(users, phone):
     clean = phone.replace(" ", "").replace("-", "")
     for p, u in users.items():
@@ -237,8 +254,11 @@ def load_escrow():
         return {}
 
 def save_escrow(escrow):
-    with open(ESCROW_FILE, "w") as f:
-        json.dump(escrow, f, indent=2)
+    try:
+        with open(ESCROW_FILE, "w") as f:
+            json.dump(escrow, f, indent=2)
+    except Exception as e:
+        print(f"ESCROW SAVE ERROR: {e}")
 
 def add_escrow(to_phone, from_name, from_phone, amount, tx_hash):
     escrow = load_escrow()
@@ -275,8 +295,11 @@ def load_kyc():
         return {}
 
 def save_kyc(kyc):
-    with open(KYC_FILE, "w") as f:
-        json.dump(kyc, f, indent=2)
+    try:
+        with open(KYC_FILE, "w") as f:
+            json.dump(kyc, f, indent=2)
+    except Exception as e:
+        print(f"KYC SAVE ERROR: {e}")
 
 def get_kyc_by_phone(phone):
     return load_kyc().get(phone, None)
@@ -870,6 +893,13 @@ def do_create_wallet(name, pin, phone):
 # ─── Main Router ───
 
 def handle_message(message, phone, media_url=None, media_type=None):
+    try:
+        return _handle_message_inner(message, phone, media_url, media_type)
+    except Exception as e:
+        print(f"HANDLE ERROR: {e}")
+        return "Something went wrong. Send hi to try again."
+
+def _handle_message_inner(message, phone, media_url=None, media_type=None):
     msg = message.strip()
     lower = msg.lower()
     parts = msg.split()
@@ -1211,15 +1241,19 @@ def handle_message(message, phone, media_url=None, media_type=None):
 
 @app.route("/webhook", methods=["POST"])
 def webhook_twilio():
-    msg = request.form.get("Body", "").strip()
-    phone = request.form.get("From", "").replace("whatsapp:", "")
-    num_media = int(request.form.get("NumMedia", 0))
-    media_url = None
-    media_type = None
-    if num_media > 0:
-        media_url = request.form.get("MediaUrl0", "")
-        media_type = request.form.get("MediaContentType0", "")
-    response = handle_message(msg, phone, media_url, media_type)
+    try:
+        msg = request.form.get("Body", "").strip()
+        phone = request.form.get("From", "").replace("whatsapp:", "")
+        num_media = int(request.form.get("NumMedia", 0))
+        media_url = None
+        media_type = None
+        if num_media > 0:
+            media_url = request.form.get("MediaUrl0", "")
+            media_type = request.form.get("MediaContentType0", "")
+        response = handle_message(msg, phone, media_url, media_type)
+    except Exception as e:
+        print(f"WEBHOOK ERROR: {e}")
+        response = "Something went wrong. Send hi to try again."
     from twilio.twiml.messaging_response import MessagingResponse
     resp = MessagingResponse()
     resp.message(response)
@@ -1267,6 +1301,15 @@ def admin_reject(phone):
     reject_kyc(phone, reason)
     return jsonify({"status": "rejected", "phone": phone}), 200
 
+
+@app.errorhandler(500)
+def handle_500(e):
+    print(f"500 ERROR: {e}")
+    return jsonify({"error": "Internal server error", "status": "error"}), 500
+
+@app.errorhandler(404)
+def handle_404(e):
+    return jsonify({"error": "Not found", "status": "error"}), 404
 
 @app.route("/health", methods=["GET"])
 def health():

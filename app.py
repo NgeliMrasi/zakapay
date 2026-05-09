@@ -744,7 +744,7 @@ def do_crossborder(phone, amount, country_key, recipient_phone=""):
         if "op_underfunded" in error_msg:
             return resp_error("Not enough funds for this transfer.")
         else:
-            return resp_error(f"Transfer failed. {error_msg[:150]}")
+            return resp_error(f"Transfer failed. {error_msg[:300]}")
 
 
 def do_deposit(phone, amount_str):

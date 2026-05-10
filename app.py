@@ -904,10 +904,16 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
     lower = msg.lower()
     parts = msg.split()
 
-    if lower in ["0", "menu", "back"]:
+    # Check if user exists
+    users = load_users()
+    _, user = find_user(users, phone)
+
+    # ═══════════════════════════════════════
+    # STEP 1: ALWAYS CHECK GREETING FIRST
+    # This MUST come before state checks
+    # ═══════════════════════════════════════
+    if lower in ["hi", "hello", "hey", "start", "yebo", "howzit", "heita", "0", "menu", "back"]:
         clear_user_state(phone)
-        users = load_users()
-        _, user = find_user(users, phone)
         if user:
             kyc = user.get("kyc_status", "unverified")
             return resp_menu(user["name"], kyc)
@@ -924,6 +930,9 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             set_user_state(phone, "awaiting_kyc_selfie")
             return resp_new_user()
 
+    # ═══════════════════════════════════════
+    # STEP 2: GET STATE
+    # ═══════════════════════════════════════
     state = get_user_state(phone)
 
     # ─── KYC Flow ───
@@ -1086,25 +1095,6 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             return f"Your verification is being reviewed."
         else:
             return f"Your account is already verified!"
-
-    # Greeting
-    if lower in ["hi", "hello", "hey", "start", "yebo", "howzit", "heita"]:
-        clear_user_state(phone)
-        if user:
-            kyc = user.get("kyc_status", "unverified")
-            return resp_menu(user["name"], kyc)
-        kyc = get_kyc_by_phone(phone)
-        if kyc and kyc["status"] == "approved":
-            set_user_state(phone, "awaiting_name")
-            return resp_kyc_approved()
-        elif kyc and kyc["status"] == "pending":
-            return resp_kyc_pending()
-        elif kyc and kyc["status"] == "rejected":
-            set_user_state(phone, "awaiting_kyc_selfie")
-            return resp_kyc_rejected(kyc.get("notes", ""))
-        else:
-            set_user_state(phone, "awaiting_kyc_selfie")
-            return resp_new_user()
 
     if lower in ["balance", "bal"] and user:
         clear_user_state(phone)

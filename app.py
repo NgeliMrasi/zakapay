@@ -1338,6 +1338,10 @@ def health():
 def home():
     return jsonify({"service": "ZakaPay API", "version": "5.0", "status": "running"}), 200
 
+@app.route("/compare", methods=["GET"])
+def compare():
+    return render_template("compare.html")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZakaPay vs The Competition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050B07;
+            --green: #00E676;
+            --red: #FF5252;
+            --gold: #FFD740;
+            --text: #E8F5E9;
+            --muted: #6b8f6e;
+            --border: rgba(0,230,118,0.12);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); padding:32px; }
+        h1 { text-align:center; font-size:2rem; font-weight:900; margin-bottom:8px; }
+        h1 span { color:var(--green); }
+        .subtitle { text-align:center; font-size:14px; color:var(--muted); margin-bottom:40px; }
+        .amount-header { text-align:center; margin-bottom:32px; }
+        .amount-header .amount { font-family:'DM Serif Display',serif; font-size:3rem; color:var(--green); }
+        .amount-header .dest { font-size:16px; color:var(--muted); margin-top:4px; }
+        .comparison { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; max-width:900px; margin:0 auto 40px; }
+        .card { background:#0c1a11; border:1px solid var(--border); border-radius:16px; padding:24px; text-align:center; }
+        .card.zakapay { border-color:var(--green); border-width:2px; background:linear-gradient(180deg, rgba(0,230,118,0.08) 0%, #0c1a11 100%); }
+        .card .logo { font-size:18px; font-weight:800; margin-bottom:16px; }
+        .card.zakapay .logo { color:var(--green); }
+        .card .row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .card .row:last-child { border:none; }
+        .card .label { font-size:13px; color:var(--muted); }
+        .card .value { font-size:14px; font-weight:700; }
+        .card .value.green { color:var(--green); }
+        .card .value.red { color:var(--red); }
+        .card .value.gold { color:var(--gold); }
+        .card .received { margin-top:16px; padding:16px; background:rgba(0,0,0,0.3); border-radius:12px; }
+        .card .received .big { font-family:'DM Serif Display',serif; font-size:28px; }
+        .card .received .label { font-size:11px; text-transform:uppercase; letter-spacing:0.1em; margin-top:4px; }
+        .card.zakapay .received .big { color:var(--green); }
+        .card .badge { display:inline-block; padding:4px 12px; border-radius:100px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; margin-top:12px; }
+        .badge.fast { background:rgba(0,230,118,0.15); color:var(--green); }
+        .badge.slow { background:rgba(255,82,82,0.15); color:var(--red); }
+        .winner { text-align:center; margin:0 auto 40px; max-width:600px; background:rgba(0,230,118,0.08); border:1px solid var(--green); border-radius:16px; padding:24px; }
+        .winner h2 { font-size:1.4rem; font-weight:800; color:var(--green); margin-bottom:8px; }
+        .winner p { font-size:14px; color:var(--text); line-height:1.6; }
+        .savings { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; max-width:900px; margin:0 auto 40px; }
+        .save-card { background:#0c1a11; border:1px solid var(--border); border-radius:12px; padding:20px; text-align:center; }
+        .save-card .num { font-family:'DM Serif Display',serif; font-size:2rem; color:var(--green); }
+        .save-card .desc { font-size:12px; color:var(--muted); margin-top:4px; }
+        .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }
+        .footer a { color:var(--green); text-decoration:none; }
+        @media(max-width:768px) { .comparison,.savings { grid-template-columns:1fr; } }
+    </style>
+</head>
+<body>
+
+    <h1>Zaka<span>Pay</span> vs The Competition</h1>
+    <p class="subtitle">Sending R2,000 from South Africa to Zimbabwe</p>
+
+    <div class="amount-header">
+        <div class="amount">R2,000</div>
+        <div class="dest">Cape Town 🇿🇦 → Harare 🇿🇼</div>
+    </div>
+
+    <div class="comparison">
+        <!-- Western Union -->
+        <div class="card">
+            <div class="logo">Western Union</div>
+            <div class="row">
+                <span class="label">Transfer fee</span>
+                <span class="value red">R120</span>
+            </div>
+            <div class="row">
+                <span class="label">FX markup</span>
+                <span class="value red">~6%</span>
+            </div>
+            <div class="row">
+                <span class="label">Total cost</span>
+                <span class="value red">R200+</span>
+            </div>
+            <div class="row">
+                <span class="label">Speed</span>
+                <span class="value">Minutes</span>
+            </div>
+            <div class="received">
+                <div class="big" style="color:#FF5252">USD 97.80</div>
+                <div class="label">Recipient receives</div>
+            </div>
+            <span class="badge slow">10% cost</span>
+        </div>
+
+        <!-- Mukuru -->
+        <div class="card">
+            <div class="logo">Mukuru</div>
+            <div class="row">
+                <span class="label">Transfer fee</span>
+                <span class="value gold">R50</span>
+            </div>
+            <div class="row">
+                <span class="label">FX markup</span>
+                <span class="value gold">~4%</span>
+            </div>
+            <div class="row">
+                <span class="label">Total cost</span>
+                <span class="value gold">R130</span>
+            </div>
+            <div class="row">
+                <span class="label">Speed</span>
+                <span class="value">Minutes</span>
+            </div>
+            <div class="received">
+                <div class="big" style="color:#FFD740">USD 101.42</div>
+                <div class="label">Recipient receives</div>
+            </div>
+            <span class="badge slow">6.5% cost</span>
+        </div>
+
+        <!-- ZakaPay -->
+        <div class="card zakapay">
+            <div class="logo">ZakaPay</div>
+            <div class="row">
+                <span class="label">Transfer fee</span>
+                <span class="value green">R10</span>
+            </div>
+            <div class="row">
+                <span class="label">FX markup</span>
+                <span class="value green">0%</span>
+            </div>
+            <div class="row">
+                <span class="label">Total cost</span>
+                <span class="value green">R10</span>
+            </div>
+            <div class="row">
+                <span class="label">Speed</span>
+                <span class="value green">5 seconds</span>
+            </div>
+            <div class="received">
+                <div class="big">USD 107.46</div>
+                <div class="label">Recipient receives</div>
+            </div>
+            <span class="badge fast">0.5% cost</span>
+        </div>
+    </div>
+
+    <div class="winner">
+        <h2>Recipient gets USD 9.66 MORE with ZakaPay</h2>
+        <p>That's R190 saved on a single R2,000 transfer. For a Somali spaza owner sending R20,000/month home, ZakaPay saves <strong>R1,900 every month</strong>. No app download. No queue. Just WhatsApp.</p>
+    </div>
+
+    <div class="savings">
+        <div class="save-card">
+            <div class="num">R190</div>
+            <div class="desc">Saved per R2,000 transfer</div>
+        </div>
+        <div class="save-card">
+            <div class="num">R1,900</div>
+            <div class="desc">Saved per month (R20K volume)</div>
+        </div>
+        <div class="save-card">
+            <div class="num">R22,800</div>
+            <div class="desc">Saved per year</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>zapapay.africa | Built on Stellar Blockchain | R10 flat fee to 10 African countries</p>
+    </div>
+
+</body>
+</html>

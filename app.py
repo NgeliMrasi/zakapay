@@ -740,6 +740,19 @@ def do_crossborder(phone, amount, country_key, recipient_phone=""):
         return resp_crossborder_success(amount, country_info, new_bal, resp["hash"])
     except Exception as e:
         clear_user_state(phone)
+        raw = str(e)
+        print(f"X-BORDER ERROR: {raw}")
+        # Extract result_codes
+        import json as _json
+        try:
+            if hasattr(e, 'response'):
+                detail = e.response.json()
+                codes = detail.get('extras', {}).get('result_codes', {})
+                return resp_error(f"Stellar: {_json.dumps(codes)}")
+        except:
+            pass
+        return resp_error(f"Error: {raw[:280]}")
+        clear_user_state(phone)
         error_msg = str(e)
         if "op_underfunded" in error_msg:
             return resp_error("Not enough funds for this transfer.")

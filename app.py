@@ -740,18 +740,19 @@ def do_crossborder(phone, amount, country_key, recipient_phone=""):
         return resp_crossborder_success(amount, country_info, new_bal, resp["hash"])
     except Exception as e:
         clear_user_state(phone)
-        raw = str(e)
-        print(f"X-BORDER ERROR: {raw}")
-        # Extract result_codes
-        import json as _json
+        error_str = str(e)
+        print(f"X-BORDER ERROR: {error_str}")
+        # Try to get Horizon error details
         try:
-            if hasattr(e, 'response'):
-                detail = e.response.json()
-                codes = detail.get('extras', {}).get('result_codes', {})
-                return resp_error(f"Stellar: {_json.dumps(codes)}")
-        except:
-            pass
-        return resp_error(f"Error: {raw[:280]}")
+            if hasattr(e, 'response') and e.response is not None:
+                body = e.response.json()
+                extras = body.get('extras', {}).get('result_codes', {})
+                ops = extras.get('operations', ['unknown'])
+                tx_code = extras.get('transaction', 'unknown')
+                return resp_error(f"Stellar {tx_code}: {str(ops)[:200]}")
+        except Exception as ex:
+            print(f"Error parsing: {ex}")
+        return resp_error(f"Transfer failed. {error_str[:200]}")
         clear_user_state(phone)
         error_msg = str(e)
         if "op_underfunded" in error_msg:
@@ -838,6 +839,13 @@ def do_withdraw(phone, amount_str):
 
 
 def do_create_wallet(name, pin, phone):
+    try:
+        return _do_create_wallet_inner(name, pin, phone)
+    except Exception as e:
+        print(f"WALLET CRASH: {e}")
+        return resp_error("Could not create wallet. Please try again.")
+
+def _do_create_wallet_inner(name, pin, phone):
     users = load_users()
     _, existing = find_user(users, phone)
     if existing:
@@ -845,6 +853,7 @@ def do_create_wallet(name, pin, phone):
     kp = Keypair.random()
     try:
         requests.get("https://friendbot.stellar.org", params={"addr": kp.public_key}, timeout=10)
+        time.sleep(2)
     except:
         pass
     pin_hash = hashlib.sha256(pin.encode()).hexdigest()
@@ -856,12 +865,13 @@ def do_create_wallet(name, pin, phone):
     }
     save_users(users)
     zarc = load_zarc()
+    za = Asset(zarc["asset_code"], zarc["issuer_public"])
     try:
-        za = Asset(zarc["asset_code"], zarc["issuer_public"])
         acc = server.load_account(kp.public_key)
         tx = TransactionBuilder(acc, NETWORK, 100).append_change_trust_op(asset=za, limit="100000").set_timeout(30).build()
         tx.sign(kp)
         server.submit_transaction(tx)
+        time.sleep(1)
         ikp = Keypair.from_secret(zarc["issuer_secret"])
         ia = server.load_account(ikp.public_key)
         tx = TransactionBuilder(ia, NETWORK, 100).add_text_memo("ZP:Welcome").append_payment_op(destination=kp.public_key, amount="100.00", asset=za).set_timeout(30).build()
@@ -870,36 +880,41 @@ def do_create_wallet(name, pin, phone):
         users[phone]["zar_balance"] = 100
         save_users(users)
     except Exception as e:
-        print(f"ZARC error: {e}")
-    pending = claim_escrow(phone, name)
-    if pending:
-        zarc = load_zarc()
-        za = Asset(zarc["asset_code"], zarc["issuer_public"])
-        total_received = 0
-        for detail in pending["details"]:
-            try:
-                escrow_secret = detail.get("escrow_secret")
-                if escrow_secret:
-                    escrow_kp = Keypair.from_secret(escrow_secret)
-                    escrow_balance = get_zarc_balance(escrow_kp.public_key)
-                    if escrow_balance > 0:
-                        escrow_acc = server.load_account(escrow_kp.public_key)
-                        tx = (
-                            TransactionBuilder(escrow_acc, NETWORK, 100)
-                            .add_text_memo("ZP:Claimed")
-                            .append_payment_op(destination=kp.public_key, amount=f"{escrow_balance:.2f}", asset=za)
-                            .set_timeout(30).build()
-                        )
-                        tx.sign(escrow_kp)
-                        server.submit_transaction(tx)
-                        total_received += escrow_balance
-            except Exception as e:
-                print(f"Escrow claim error: {e}")
-        if total_received > 0:
-            new_bal = get_zarc_balance(kp.public_key)
-            users[phone]["zar_balance"] = new_bal
-            save_users(users)
-            pending["total"] = total_received
+        print(f"WALLET ZARC ERROR: {e}")
+    pending = None
+    try:
+        pending = claim_escrow(phone, name)
+        if pending:
+            zarc = load_zarc()
+            za = Asset(zarc["asset_code"], zarc["issuer_public"])
+            total_received = 0
+            for detail in pending["details"]:
+                try:
+                    escrow_secret = detail.get("escrow_secret")
+                    if escrow_secret:
+                        escrow_kp = Keypair.from_secret(escrow_secret)
+                        escrow_balance = get_zarc_balance(escrow_kp.public_key)
+                        if escrow_balance > 0:
+                            escrow_acc = server.load_account(escrow_kp.public_key)
+                            tx = (
+                                TransactionBuilder(escrow_acc, NETWORK, 100)
+                                .add_text_memo("ZP:Claimed")
+                                .append_payment_op(destination=kp.public_key, amount=f"{escrow_balance:.2f}", asset=za)
+                                .set_timeout(30).build()
+                            )
+                            tx.sign(escrow_kp)
+                            server.submit_transaction(tx)
+                            total_received += escrow_balance
+                except Exception as e:
+                    print(f"Escrow claim error: {e}")
+            if total_received > 0:
+                new_bal = get_zarc_balance(kp.public_key)
+                users[phone]["zar_balance"] = new_bal
+                save_users(users)
+                pending["total"] = total_received
+    except Exception as e:
+        print(f"Escrow claim crash: {e}")
+        pending = None
     return resp_registered(name, kp.public_key, pending)
 
 

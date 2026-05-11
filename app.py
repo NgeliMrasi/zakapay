@@ -1194,11 +1194,18 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
                 if amount > 0 and detected_phone:
                     set_user_state(phone, "awaiting_xborder_confirm:" + country + ":" + str(amount) + ":" + detected_phone)
                     return resp_crossborder_confirm(amount, CORRIDORS[country], detected_phone)
+                elif detected_phone:
+                    set_user_state(phone, "awaiting_xborder_amount:" + country + ":" + detected_phone)
+                    return resp_crossborder_amount(CORRIDORS[country])
                 elif amount > 0:
-                    set_user_state(phone, "awaiting_xborder_confirm:" + country + ":" + str(amount))
-                    return resp_crossborder_confirm(amount, CORRIDORS[country])
-                set_user_state(phone, "awaiting_xborder_amount:" + country + ":" + (detected_phone or ""))
-                return resp_crossborder_amount(CORRIDORS[country])
+                    # Have amount but no phone — ask for phone
+                    set_user_state(phone, "awaiting_xborder_recipient:" + country)
+                    return (
+                        f"Sending to {CORRIDORS[country]['flag']} {CORRIDORS[country]['country']}.\n\n"
+                        f"What\'s the recipient\'s phone number?\n"
+                        f"Example: +263771234567"
+                    )
+            # No country detected — ask for phone number
             set_user_state(phone, "awaiting_xborder_country")
             return resp_crossborder_prompt()
 

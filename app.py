@@ -699,38 +699,34 @@ def do_send(phone, amount_str, to_phone):
             return resp_error(f"Transfer failed. {str(e)[:100]}")
 
 
+
 def do_crossborder(phone, amount, country_key, recipient_phone=""):
     """Execute cross-border transfer via Stellar DEX."""
-    users = load_users()
-    _, sender = find_user(users, phone)
-    if not sender:
-        clear_user_state(phone)
-        return None
-
-    country_info = CORRIDORS.get(country_key)
-    if not country_info:
-        clear_user_state(phone)
-        return resp_error(f"Unknown country: {country_key}")
-
-    fee = CROSS_BORDER_FEE
-    total = amount + fee
-    zar = get_zarc_balance(sender["public_key"])
-
-    if zar < total:
-        clear_user_state(phone)
-        return resp_error(f"Not enough funds.\n\nYour balance: R{zar:,.2f}\nNeed: R{total:,.2f} (includes R{fee:.2f} fee)")
-
-    sender_kp = Keypair.from_secret(sender["secret_encrypted"])
-    zarc = load_zarc()
-    za = Asset(zarc["asset_code"], zarc["issuer_public"])
-
     try:
-        # Send ZARC to distribution account (simulates DEX swap + delivery)
+        users = load_users()
+        _, sender = find_user(users, phone)
+        if not sender:
+            clear_user_state(phone)
+            return None
+        country_info = CORRIDORS.get(country_key)
+        if not country_info:
+            clear_user_state(phone)
+            return resp_error("Unknown country.")
+        fee = CROSS_BORDER_FEE
+        total = amount + fee
+        zar = get_zarc_balance(sender["public_key"])
+        if zar < total:
+            clear_user_state(phone)
+            return resp_error(f"Not enough funds.\n\nBalance: R{zar:,.2f}\nNeed: R{total:,.2f}")
+        sender_kp = Keypair.from_secret(sender["secret_encrypted"])
+        zarc = load_zarc()
+        za = Asset(zarc["asset_code"], zarc["issuer_public"])
         acc = server.load_account(sender_kp.public_key)
         converted = (amount - fee) * country_info["rate"]
+        memo = f"ZP:XB:{amount:.0f}"
         tx = (
             TransactionBuilder(acc, NETWORK, 100)
-            .add_text_memo(f"ZP:XB:{country_key[:3].upper()}:{amount:.0f}")
+            .add_text_memo(memo)
             .append_payment_op(destination=zarc["distribution_public"], amount=f"{total:.2f}", asset=za)
             .set_timeout(30).build()
         )
@@ -746,23 +742,16 @@ def do_crossborder(phone, amount, country_key, recipient_phone=""):
         clear_user_state(phone)
         error_str = str(e)
         print(f"X-BORDER ERROR: {error_str}")
-        # Try to get Horizon error details
         try:
-            if hasattr(e, 'response') and e.response is not None:
-                body = e.response.json()
-                extras = body.get('extras', {}).get('result_codes', {})
-                ops = extras.get('operations', ['unknown'])
-                tx_code = extras.get('transaction', 'unknown')
-                return resp_error(f"Stellar {tx_code}: {str(ops)[:200]}")
-        except Exception as ex:
-            print(f"Error parsing: {ex}")
-        return resp_error(f"Transfer failed. {error_str[:200]}")
-        clear_user_state(phone)
-        error_msg = str(e)
-        if "op_underfunded" in error_msg:
-            return resp_error("Not enough funds for this transfer.")
-        else:
-            return resp_error(f"Transfer failed. {error_msg[:300]}")
+            import json as _json
+            if "{" in error_str:
+                body = _json.loads(error_str)
+                extras = body.get("extras", {}).get("result_codes", {})
+                ops = extras.get("operations", ["unknown"])
+                return resp_error(f"Stellar: {ops}")
+        except:
+            pass
+        return resp_error(f"Transfer failed. {error_str[:280]}")
 
 
 def do_deposit(phone, amount_str):

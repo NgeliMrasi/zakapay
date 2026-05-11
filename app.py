@@ -727,7 +727,7 @@ def do_crossborder(phone, amount, country_key, recipient_phone=""):
         tx = (
             TransactionBuilder(acc, NETWORK, 100)
             .add_text_memo(memo)
-            .append_payment_op(destination=zarc["distribution_public"], amount=f"{total:.2f}", asset=za)
+            .append_payment_op(destination=zarc["issuer_public"], amount=f"{total:.2f}", asset=za)
             .set_timeout(30).build()
         )
         tx.sign(sender_kp)
@@ -815,7 +815,7 @@ def do_withdraw(phone, amount_str):
         tx = (
             TransactionBuilder(acc, NETWORK, 100)
             .add_text_memo(f"ZP:Withdraw:{amount:.0f}")
-            .append_payment_op(destination=zarc["distribution_public"], amount=f"{amount:.2f}", asset=za)
+            .append_payment_op(destination=zarc["issuer_public"], amount=f"{amount:.2f}", asset=za)
             .set_timeout(30).build()
         )
         tx.sign(ukp)

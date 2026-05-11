@@ -46,6 +46,8 @@ CORRIDORS = {
     "zambia": {"country": "Zambia", "currency": "ZMW", "rate": 1.38, "symbol": "ZMW", "flag": "\U0001f1ff\U0001f1f2"},
     "malawi": {"country": "Malawi", "currency": "MWK", "rate": 88.2, "symbol": "MWK", "flag": "\U0001f1f2\U0001f1fc"},
     "ghana": {"country": "Ghana", "currency": "GHS", "rate": 0.68, "symbol": "GHS", "flag": "\U0001f1ec\U0001f1ed"},
+    "somalia": {"country": "Somalia", "currency": "USD", "rate": 0.054, "symbol": "USD", "flag": "\U0001f1f8\U0001f1f4"},
+    "ethiopia": {"country": "Ethiopia", "currency": "ETB", "rate": 3.12, "symbol": "ETB", "flag": "\U0001f1ea\U0001f1f9"},
 }
 
 CROSS_BORDER_FEE = 10.00  # R10 flat fee
@@ -60,6 +62,8 @@ PHONE_PREFIXES = {
     "+260": "zambia",
     "+265": "malawi",
     "+233": "ghana",
+    "+252": "somalia",
+    "+251": "ethiopia",
 }
 
 def detect_country_from_phone(phone):

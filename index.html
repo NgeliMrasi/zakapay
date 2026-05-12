@@ -637,8 +637,9 @@
 
         .waitlist-form {
             display: flex;
-            gap: 12px;
-            max-width: 420px;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 380px;
             margin: 0 auto 16px;
         }
 
@@ -986,7 +987,8 @@
                 </a>
                 <span class="cta-divider">or join the waitlist</span>
                 <form class="waitlist-form" action="https://formspree.io/f/xrejbkoz" method="POST" id="waitlistForm">
-                    <input type="email" name="email" placeholder="your@email.com" required>
+                    <input type="text" name="name" placeholder="Your name" required>
+                    <input type="tel" name="whatsapp" placeholder="+27 82 000 0000" required>
                     <button type="submit">Join</button>
                 </form>
                 <p class="form-note">No spam. We WhatsApp you when we launch.</p>
@@ -1030,6 +1032,12 @@
                 this.style.display = 'none';
                 document.getElementById('successMessage').style.display = 'block';
             }, 500);
+        });
+        // Format phone input
+        document.querySelector('input[name="whatsapp"]').addEventListener('input', function(e) {
+            let val = this.value.replace(/[^0-9+ ]/g, '');
+            if (val && !val.startsWith('+')) val = '+27 ' + val;
+            this.value = val;
         });
     </script>
 </body>

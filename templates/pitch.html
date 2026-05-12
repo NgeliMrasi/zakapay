@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZakaPay — Pitch Deck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050B07;
+            --green: #00E676;
+            --green-dim: rgba(0,230,118,0.12);
+            --gold: #FFD740;
+            --red: #FF5252;
+            --text: #E8F5E9;
+            --muted: #6b8f6e;
+            --border: rgba(0,230,118,0.12);
+            --card: #0C1A11;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); }
+        .slide {
+            width: 1280px;
+            height: 720px;
+            padding: 60px 80px;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1px solid var(--border);
+            page-break-after: always;
+        }
+        .slide::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 80% 20%, rgba(0,230,118,0.04) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        .slide-num {
+            position: absolute;
+            bottom: 24px;
+            right: 40px;
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: 0.1em;
+        }
+        .logo-small {
+            position: absolute;
+            bottom: 24px;
+            left: 40px;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--muted);
+        }
+        .logo-small span { color: var(--green); }
+        h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 52px;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+        }
+        h1 .green { color: var(--green); }
+        h2 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 40px;
+            line-height: 1.15;
+            margin-bottom: 20px;
+        }
+        h2 .green { color: var(--green); }
+        h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+        .subtitle {
+            font-size: 20px;
+            color: var(--muted);
+            line-height: 1.5;
+            max-width: 700px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border: 1px solid var(--green-dim);
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--green);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            background: rgba(0,230,118,0.05);
+        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+        .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+        .card .num {
+            font-family: 'DM Serif Display', serif;
+            font-size: 36px;
+            color: var(--green);
+            margin-bottom: 6px;
+        }
+        .card .label {
+            font-size: 13px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .card .desc {
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.5;
+            margin-top: 6px;
+        }
+        .list-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+        .list-item .bullet {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+        .list-item .text { font-size: 16px; line-height: 1.5; }
+        .flow-step {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .flow-step .title { font-weight: 700; font-size: 14px; }
+        .flow-step .desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+        .flow-arrow {
+            text-align: center;
+            font-size: 24px;
+            color: var(--green);
+            padding: 16px 0;
+        }
+        .quote {
+            font-family: 'DM Serif Display', serif;
+            font-size: 22px;
+            line-height: 1.5;
+            color: var(--text);
+            max-width: 800px;
+            margin: 20px 0;
+            padding-left: 24px;
+            border-left: 3px solid var(--green);
+        }
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+        .compare-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 1px solid var(--border);
+        }
+        .compare-table td {
+            padding: 12px 16px;
+            font-size: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .compare-table tr.winner td {
+            color: var(--green);
+            font-weight: 700;
+        }
+        .compare-table .red { color: var(--red); }
+        .compare-table .gold { color: var(--gold); }
+        .compare-table .green { color: var(--green); }
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 32px;
+        }
+        .team-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px 24px;
+            text-align: center;
+        }
+        .team-card .avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), #004d29);
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--bg);
+        }
+        .team-card .name { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+        .team-card .role { font-size: 13px; color: var(--green); font-weight: 600; margin-bottom: 8px; }
+        .team-card .bio { font-size: 12px; color: var(--muted); line-height: 1.5; }
+        .timeline {
+            display: flex;
+            gap: 0;
+            margin-top: 32px;
+        }
+        .timeline-item {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-right: 12px;
+            background: var(--card);
+        }
+        .timeline-item:last-child { margin-right: 0; }
+        .timeline-item .period { font-size: 12px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+        .timeline-item .goal { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+        .timeline-item .detail { font-size: 12px; color: var(--muted); line-height: 1.5; }
+        .ask-box {
+            background: linear-gradient(135deg, rgba(0,230,118,0.1), rgba(0,230,118,0.02));
+            border: 2px solid var(--green);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            margin-top: 32px;
+        }
+        .ask-box .amount {
+            font-family: 'DM Serif Display', serif;
+            font-size: 48px;
+            color: var(--green);
+        }
+        .ask-box .desc {
+            font-size: 18px;
+            color: var(--text);
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- SLIDE 1: TITLE -->
+<div class="slide" style="display: flex; flex-direction: column; justify-content: center;">
+    <div class="badge">Stellar Blockchain | WhatsApp Native | Cross-Border</div>
+    <h1>Zaka<span class="green">Pay</span></h1>
+    <p class="subtitle" style="font-size: 28px; color: var(--text); max-width: 800px; margin-bottom: 12px;">
+        Cross-border payments on WhatsApp.<br>
+        R10 flat fee. 5 seconds. 10 African countries.
+    </p>
+    <p class="subtitle">
+        The Felix Pago model for Africa's $3 billion remittance market.
+    </p>
+    <div style="margin-top: 40px;">
+        <span style="color: var(--muted); font-size: 14px;">Ngeli Mrasi | Founder and CEO | ngeli@zakapay.africa</span>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">01 / 10</div>
+</div>
+
+<!-- SLIDE 2: PROBLEM -->
+<div class="slide">
+    <div class="badge">The Problem</div>
+    <h2>Millions of migrant workers in<br>South Africa are <span class="green">overcharged</span><br>to send money home.</h2>
+    <div class="grid-2" style="margin-top: 32px;">
+        <div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text">Zimbabweans, Somalis, Ethiopians, and Mozambicans working in South Africa pay <strong style="color:var(--red)">8-10% in fees</strong> via Western Union or Mukuru when sending money home.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text">A Somali spaza owner sending R20,000/month home loses <strong style="color:var(--red)">R1,500+ in fees</strong> every month.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text">The SADC remittance corridor moves over <strong>$3 billion annually</strong> — yet the people who need it most pay the highest fees.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text">Western Union requires an app download, a branch visit, and takes minutes to hours. <strong>Not built for the informal economy or the people who power it.</strong></div>
+            </div>
+        </div>
+        <div>
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="num" style="color: var(--red);">R1,500</div>
+                <div class="label">Lost per month in fees</div>
+                <div class="desc">Per spaza owner sending R20K home</div>
+            </div>
+            <div class="card" style="margin-bottom: 16px;">
+                <div class="num" style="color: var(--red);">8-10%</div>
+                <div class="label">Cross-border fees</div>
+                <div class="desc">Western Union, Mukuru, banks</div>
+            </div>
+            <div class="card">
+                <div class="num" style="color: var(--gold);">30 min</div>
+                <div class="label">Average wait time</div>
+                <div class="desc">Branch visit + queue + forms</div>
+            </div>
+        </div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">02 / 10</div>
+</div>
+
+<!-- SLIDE 3: SOLUTION -->
+<div class="slide">
+    <div class="badge">The Solution</div>
+    <h2>Send money home<br>for <span class="green">R10 flat fee.</span><br>Via WhatsApp.</h2>
+    <div class="subtitle" style="margin-bottom: 32px;">No app download. No bank account. No data bundle. Just WhatsApp.</div>
+    <div class="grid-4">
+        <div class="flow-step">
+            <div class="title" style="color: var(--green);">01</div>
+            <div class="title">KYC</div>
+            <div class="desc">Selfie + ID on WhatsApp</div>
+        </div>
+        <div class="flow-step">
+            <div class="title" style="color: var(--green);">02</div>
+            <div class="title">Deposit</div>
+            <div class="desc">Bank to ZakaPay</div>
+        </div>
+        <div class="flow-step">
+            <div class="title" style="color: var(--green);">03</div>
+            <div class="title">Send</div>
+            <div class="desc">Phone number = country</div>
+        </div>
+        <div class="flow-step">
+            <div class="title" style="color: var(--green);">04</div>
+            <div class="title">Receive</div>
+            <div class="desc">5 seconds. On-chain.</div>
+        </div>
+    </div>
+    <div style="margin-top: 32px; padding: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 16px;">
+        <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">User says on WhatsApp:</div>
+        <div style="font-size: 18px; color: var(--green);">"Send R2000 to +263771234567"</div>
+        <div style="font-size: 14px; color: var(--muted); margin-top: 8px;">ZakaPay detects Zimbabwe, shows fee (R10), exchange rate, and amount recipient gets (USD 107.46). User replies YES. Done in 5 seconds.</div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">03 / 10</div>
+</div>
+
+<!-- SLIDE 4: MARKET -->
+<div class="slide">
+    <div class="badge">Market Opportunity</div>
+    <h2>A <span class="green">$3 billion</span> market<br>waiting for WhatsApp.</h2>
+    <div class="grid-3" style="margin-top: 32px;">
+        <div class="card">
+            <div class="num">$330M+</div>
+            <div class="label">SA Outward Remittance</div>
+            <div class="desc">Source: SARB / World Bank</div>
+        </div>
+        <div class="card">
+            <div class="num">$3B+</div>
+            <div class="label">SADC Total Remittance</div>
+            <div class="desc">Source: World Bank RPW</div>
+        </div>
+        <div class="card">
+            <div class="num">$1.8B</div>
+            <div class="label">SA to Zimbabwe Corridor</div>
+            <div class="desc">Largest in Africa</div>
+        </div>
+    </div>
+    <div class="grid-3" style="margin-top: 16px;">
+        <div class="card">
+            <div class="num">200K+</div>
+            <div class="label">Spaza Shops</div>
+            <div class="desc">98% Somali-owned</div>
+        </div>
+        <div class="card">
+            <div class="num">R22,800</div>
+            <div class="label">Saved per user per year</div>
+            <div class="desc">vs Western Union</div>
+        </div>
+        <div class="card">
+            <div class="num">$400M</div>
+            <div class="label">Felix Pago Valuation</div>
+            <div class="desc">Same model, US-Mexico</div>
+        </div>
+    </div>
+    <div style="margin-top: 24px;">
+        <div class="quote">"Felix Pago raised at a $400M valuation with the same model: WhatsApp + remittance for diaspora communities. We are building Felix Pago for Africa."</div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">04 / 10</div>
+</div>
+
+<!-- SLIDE 5: COMPETITION -->
+<div class="slide">
+    <div class="badge">Competition</div>
+    <h2>Sending R2,000<br>to <span class="green">Zimbabwe.</span></h2>
+    <table class="compare-table">
+        <tr>
+            <th>Provider</th>
+            <th>Fee</th>
+            <th>FX Markup</th>
+            <th>Total Cost</th>
+            <th>Recipient Gets</th>
+            <th>Speed</th>
+            <th>Platform</th>
+        </tr>
+        <tr>
+            <td>Western Union</td>
+            <td class="red">R120</td>
+            <td class="red">~6%</td>
+            <td class="red">R200+</td>
+            <td class="red">USD 97.80</td>
+            <td>Minutes</td>
+            <td>Branch / App</td>
+        </tr>
+        <tr>
+            <td>Mukuru</td>
+            <td class="gold">R50</td>
+            <td class="gold">~4%</td>
+            <td class="gold">R130</td>
+            <td class="gold">USD 101.42</td>
+            <td>Minutes</td>
+            <td>App / USSD</td>
+        </tr>
+        <tr>
+            <td>WorldRemit</td>
+            <td class="gold">R40</td>
+            <td class="gold">~3%</td>
+            <td class="gold">R100</td>
+            <td class="gold">USD 103.20</td>
+            <td>Minutes</td>
+            <td>App</td>
+        </tr>
+        <tr>
+            <td>Wise</td>
+            <td>R30</td>
+            <td>~1%</td>
+            <td>R50</td>
+            <td>USD 105.80</td>
+            <td>Minutes</td>
+            <td>App / Web</td>
+        </tr>
+        <tr class="winner">
+            <td>ZakaPay</td>
+            <td>R10</td>
+            <td>0%</td>
+            <td>R10</td>
+            <td>USD 107.46</td>
+            <td>5 seconds</td>
+            <td>WhatsApp</td>
+        </tr>
+    </table>
+    <div style="margin-top: 24px; display: flex; gap: 40px;">
+        <div>
+            <span style="font-size: 14px; color: var(--muted);">Recipient gets </span>
+            <span style="font-size: 20px; color: var(--green); font-weight: 800;">USD 9.66 MORE</span>
+            <span style="font-size: 14px; color: var(--muted);"> with ZakaPay</span>
+        </div>
+        <div>
+            <span style="font-size: 14px; color: var(--muted);">Annual saving: </span>
+            <span style="font-size: 20px; color: var(--green); font-weight: 800;">R22,800</span>
+            <span style="font-size: 14px; color: var(--muted);"> per sender</span>
+        </div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">05 / 10</div>
+</div>
+
+<!-- SLIDE 6: PRODUCT -->
+<div class="slide">
+    <div class="badge">Product</div>
+    <h2>Built on <span class="green">Stellar Blockchain.</span></h2>
+    <div class="grid-2" style="margin-top: 24px;">
+        <div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>WhatsApp Native</strong> — Zero UI friction. No app download. The app everyone already has.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>Stellar DEX</strong> — ZARC stablecoin. Cross-border FX via decentralized exchange. No bank intermediaries.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>AI-Powered</strong> — Groq natural language. Users just talk. No menus. No forms.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>On-Chain KYC</strong> — WhatsApp selfie + ID. FICA-ready pipeline. Admin dashboard.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>Escrow System</strong> — Send to unregistered users. Money waits until they join.</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>R10 Flat Fee</strong> — Any country. Any amount. No hidden costs. No FX markup.</div>
+            </div>
+        </div>
+        <div>
+            <div class="flow-step"><div class="title">WhatsApp</div><div class="desc">User sends message</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-step"><div class="title">Twilio API</div><div class="desc">Message received</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-step"><div class="title">Flask Backend + Groq AI</div><div class="desc">Intent understood, transaction built</div></div>
+            <div class="flow-arrow">↓</div>
+            <div class="flow-step"><div class="title">Stellar Blockchain</div><div class="desc">ZARC sent. 5-second settlement. On-chain receipt.</div></div>
+        </div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">06 / 10</div>
+</div>
+
+<!-- SLIDE 7: BUSINESS MODEL -->
+<div class="slide">
+    <div class="badge">Business Model</div>
+    <h2><span class="green">88% margin</span> on<br>cross-border transfers.</h2>
+    <div class="grid-3" style="margin-top: 32px;">
+        <div class="card">
+            <div class="num">R2.50</div>
+            <div class="label">Domestic P2P Fee</div>
+            <div class="desc">~R0.001 cost on Stellar<br>99.9% margin</div>
+        </div>
+        <div class="card" style="border-color: var(--green); border-width: 2px;">
+            <div class="num">R10</div>
+            <div class="label">Cross-Border Fee</div>
+            <div class="desc">~R1.20 cost on Stellar<br>88% margin</div>
+        </div>
+        <div class="card">
+            <div class="num">R2</div>
+            <div class="label">Cash-In/Out Commission</div>
+            <div class="desc">Spaza shop agents<br>95% margin</div>
+        </div>
+    </div>
+    <div style="margin-top: 32px;">
+        <h3 style="margin-bottom: 16px;">Acquisition Strategy: Felix Pago Model</h3>
+        <div class="grid-3">
+            <div class="card">
+                <div style="font-size: 14px; color: var(--green); font-weight: 700;">Phase 1: Remittance</div>
+                <div class="desc">Migrant workers and spaza owners send money home via WhatsApp. Saves R1,500/month vs Western Union.</div>
+            </div>
+            <div class="card">
+                <div style="font-size: 14px; color: var(--green); font-weight: 700;">Phase 2: Viral Network</div>
+                <div class="desc">Each owner tells 10 cousins. The Somali business network is the distribution channel.</div>
+            </div>
+            <div class="card">
+                <div style="font-size: 14px; color: var(--green); font-weight: 700;">Phase 3: Merchant</div>
+                <div class="desc">Same users pay spazas and suppliers. Expand to unbanked South Africans. Money never leaves the digital ecosystem.</div>
+            </div>
+        </div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">07 / 10</div>
+</div>
+
+<!-- SLIDE 8: TRACTION -->
+<div class="slide">
+    <div class="badge">Traction</div>
+    <h2>Built. Live. <span class="green">On-chain.</span></h2>
+    <div class="grid-2" style="margin-top: 24px;">
+        <div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>9 verified on-chain transactions</strong> on Stellar testnet</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>Cross-border transfers to 5 countries</strong> in live sessions: Zimbabwe, Somalia, Ethiopia, Mozambique, Tanzania</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>10 African corridors</strong> built and functional with R10 flat fee</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>Full KYC pipeline:</strong> Selfie + ID on WhatsApp, admin dashboard approval</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>Landing page live</strong> at zakapay.africa with waitlist</div>
+            </div>
+            <div class="list-item">
+                <div class="bullet"></div>
+                <div class="text"><strong>Built entirely on a smartphone</strong> using Termux. No PC. No laptop.</div>
+            </div>
+        </div>
+        <div>
+            <div class="card" style="margin-bottom: 12px;">
+                <div style="font-size: 12px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">SA to Zimbabwe</div>
+                <div style="font-family: monospace; font-size: 11px; color: var(--muted); margin-top: 4px; word-break: break-all;">fbd6f40bcba1c5af53201ab7cc442388ce5334ea02042efc93563739f98035ba</div>
+            </div>
+            <div class="card" style="margin-bottom: 12px;">
+                <div style="font-size: 12px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">SA to Somalia</div>
+                <div style="font-family: monospace; font-size: 11px; color: var(--muted); margin-top: 4px; word-break: break-all;">f0ed5f5e1da6849e52a9181a160d55d10132aceb3606ae03b0a494b8b5d32705</div>
+            </div>
+            <div class="card" style="margin-bottom: 12px;">
+                <div style="font-size: 12px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">SA to Ethiopia</div>
+                <div style="font-family: monospace; font-size: 11px; color: var(--muted); margin-top: 4px; word-break: break-all;">4387bdad7a4c829401580f399f7abcb890d108b60fe2e3ed6214eab73fc25ac8</div>
+            </div>
+            <div class="card">
+                <div style="font-size: 12px; color: var(--green); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Deposit R5,000</div>
+                <div style="font-family: monospace; font-size: 11px; color: var(--muted); margin-top: 4px; word-break: break-all;">790e2c22c713e18e9feb891619899ea787635fbcb7018710e448bce6f7f8c5a9</div>
+            </div>
+        </div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">08 / 10</div>
+</div>
+
+<!-- SLIDE 9: TEAM -->
+<div class="slide">
+    <div class="badge">Team</div>
+    <h2>Built by a <span class="green">founder</span> who<br>lives the problem.</h2>
+    <div class="team-grid">
+        <div class="team-card">
+            <div class="avatar">N</div>
+            <div class="name">Ngeli Mrasi</div>
+            <div class="role">Founder and CEO</div>
+            <div class="bio">UCT Genesis graduate. Built the entire ZakaPay prototype on a smartphone using Termux. Deep understanding of the unbanked market from lived experience in South Africa's townships.</div>
+        </div>
+        <div class="team-card">
+            <div class="avatar" style="background: linear-gradient(135deg, #FF6B00, #8B3A00);">M</div>
+            <div class="name">MiMo</div>
+            <div class="role">Technical Co-Founder (AI)</div>
+            <div class="bio">Xiaomi MiMo AI. Architecture, backend, blockchain integration. Built the Flask API, Stellar SDK integration, escrow system, and cross-border transaction engine.</div>
+        </div>
+        <div class="team-card">
+            <div class="avatar" style="background: linear-gradient(135deg, #4285F4, #1A3F7A);">G</div>
+            <div class="name">Gemini</div>
+            <div class="role">Strategy and Research (AI)</div>
+            <div class="bio">Google Gemini AI. Market analysis, competitive research, pitch strategy, venture studio applications, and business development support.</div>
+        </div>
+    </div>
+    <div style="margin-top: 32px; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px;">
+        <div style="font-size: 14px; color: var(--muted);">Why AI co-founders?</div>
+        <div style="font-size: 16px; margin-top: 6px;">ZakaPay was built in <strong style="color: var(--green);">3 weeks</strong> by one human founder and two AI co-founders working 24/7. This is the future of early-stage building. Antler's thesis on technical founders is exactly who we are.</div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">09 / 10</div>
+</div>
+
+<!-- SLIDE 10: THE ASK -->
+<div class="slide" style="display: flex; flex-direction: column; justify-content: center;">
+    <div class="badge">The Ask</div>
+    <h2>We are raising to go from<br><span class="green">testnet to mainnet.</span></h2>
+    <div class="ask-box">
+        <div class="amount">Seed Round</div>
+        <div class="desc">To move from Stellar testnet to mainnet, integrate mobile money APIs (EcoCash, M-Pesa), and pilot with 50 Somali spaza shops in Cape Town.</div>
+    </div>
+    <div class="timeline" style="margin-top: 32px;">
+        <div class="timeline-item">
+            <div class="period">Month 1-2</div>
+            <div class="goal">Mainnet + Mobile Money</div>
+            <div class="detail">Stellar mainnet deployment. EcoCash API integration for Zimbabwe corridor.</div>
+        </div>
+        <div class="timeline-item">
+            <div class="period">Month 3-4</div>
+            <div class="goal">50-Spaza Pilot</div>
+            <div class="detail">Onboard 50 Somali spaza shops in Cape Town. Cross-border remittance focus.</div>
+        </div>
+        <div class="timeline-item">
+            <div class="period">Month 5-6</div>
+            <div class="goal">Scale + Series A</div>
+            <div class="detail">500 users. R500K+ volume. Series A pitch with live data.</div>
+        </div>
+    </div>
+    <div style="margin-top: 32px; text-align: center;">
+        <div style="font-size: 20px; font-weight: 700;">Ngeli Mrasi | ngeli@zakapay.africa | +27 64 878 2381</div>
+        <div style="font-size: 14px; color: var(--muted); margin-top: 8px;">zakapay.africa | github.com/NgeliMrasi/zakapay</div>
+    </div>
+    <div class="logo-small">Zaka<span>Pay</span></div>
+    <div class="slide-num">10 / 10</div>
+</div>
+
+</body>
+</html>

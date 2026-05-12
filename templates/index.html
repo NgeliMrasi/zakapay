@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZakaPay - Cross-Border Payments on WhatsApp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050B07;
+            --green: #00E676;
+            --green-dim: rgba(0,230,118,0.12);
+            --gold: #FFD740;
+            --red: #FF5252;
+            --text: #E8F5E9;
+            --muted: #6b8f6e;
+            --border: rgba(0,230,118,0.12);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+            opacity: 0.04;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .bg-mesh {
+            position: fixed; inset: 0;
+            background: radial-gradient(ellipse at 20% 0%, rgba(0,230,118,0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 100%, rgba(0,230,118,0.05) 0%, transparent 50%);
+            z-index: -1;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; border-bottom: 1px solid var(--border); }
+        .logo { font-size: 24px; font-weight: 900; }
+        .logo span { color: var(--green); }
+        .nav-links { display: flex; gap: 24px; }
+        .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--green); }
+        .nav-cta { background: var(--green); color: var(--bg); padding: 10px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; transition: all 0.2s; }
+        .nav-cta:hover { letter-spacing: 0.05em; box-shadow: 0 0 30px rgba(0,230,118,0.3); }
+        .hero { padding: 120px 0 80px; text-align: center; }
+        .hero-badge { display: inline-block; padding: 6px 16px; border: 1px solid var(--green-dim); border-radius: 100px; font-size: 12px; font-weight: 600; color: var(--green); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 32px; background: rgba(0,230,118,0.05); }
+        .hero h1 { font-family: 'DM Serif Display', serif; font-size: clamp(2.5rem, 6vw, 4.5rem); line-height: 1.05; margin-bottom: 24px; }
+        .hero h1 .green { color: var(--green); }
+        .hero p { font-size: 18px; color: var(--muted); max-width: 600px; margin: 0 auto 40px; line-height: 1.6; }
+        .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .btn-primary { background: var(--green); color: var(--bg); padding: 16px 36px; border-radius: 12px; font-weight: 800; font-size: 16px; text-decoration: none; transition: all 0.2s; }
+        .btn-primary:hover { letter-spacing: 0.08em; box-shadow: 0 0 40px rgba(0,230,118,0.3); }
+        .btn-secondary { border: 1px solid var(--border); color: var(--text); padding: 16px 36px; border-radius: 12px; font-weight: 600; font-size: 16px; text-decoration: none; transition: all 0.2s; }
+        .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; padding: 60px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .stat { text-align: center; }
+        .stat .num { font-family: 'DM Serif Display', serif; font-size: 2.5rem; color: var(--green); }
+        .stat .desc { font-size: 13px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .how { padding: 100px 0; }
+        .section-label { font-size: 12px; font-weight: 700; color: var(--green); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 16px; }
+        .section-title { font-family: 'DM Serif Display', serif; font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 16px; line-height: 1.1; }
+        .section-desc { font-size: 16px; color: var(--muted); max-width: 500px; line-height: 1.6; margin-bottom: 48px; }
+        .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+        .step { background: rgba(0,20,10,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; opacity: 0; animation: fadeUp 0.6s ease forwards; }
+        .step:nth-child(2) { animation-delay: 0.1s; }
+        .step:nth-child(3) { animation-delay: 0.2s; }
+        .step:nth-child(4) { animation-delay: 0.3s; }
+        .step .num { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--green); margin-bottom: 12px; }
+        .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+        .step p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .compare { padding: 100px 0; }
+        .compare-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; }
+        .compare-card { background: rgba(0,20,10,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; text-align: center; }
+        .compare-card.winner { border-color: var(--green); border-width: 2px; background: linear-gradient(180deg, rgba(0,230,118,0.08) 0%, rgba(0,20,10,0.5) 100%); transform: scale(1.03); }
+        .compare-card .name { font-size: 18px; font-weight: 800; margin-bottom: 20px; }
+        .compare-card.winner .name { color: var(--green); }
+        .compare-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+        .compare-row .label { color: var(--muted); }
+        .compare-row .val { font-weight: 700; }
+        .compare-row .val.red { color: var(--red); }
+        .compare-row .val.gold { color: var(--gold); }
+        .compare-row .val.green { color: var(--green); }
+        .compare-received { margin-top: 16px; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+        .compare-received .amount { font-family: 'DM Serif Display', serif; font-size: 26px; }
+        .compare-card.winner .compare-received .amount { color: var(--green); }
+        .compare-received .note { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .compare-badge { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 100px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+        .compare-badge.good { background: rgba(0,230,118,0.15); color: var(--green); }
+        .compare-badge.bad { background: rgba(255,82,82,0.15); color: var(--red); }
+        .compare-badge.mid { background: rgba(255,215,64,0.15); color: var(--gold); }
+        .corridors { padding: 100px 0; }
+        .corridor-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 48px; }
+        .corridor { background: rgba(0,20,10,0.5); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; transition: all 0.2s; }
+        .corridor:hover { border-color: var(--green); transform: translateY(-2px); }
+        .corridor .flag { font-size: 28px; margin-bottom: 6px; }
+        .corridor .name { font-size: 13px; font-weight: 700; }
+        .corridor .code { font-size: 11px; color: var(--muted); }
+        .savings { padding: 80px 0; }
+        .savings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+        .save-card { background: rgba(0,20,10,0.5); border: 1px solid var(--border); border-radius: 16px; padding: 32px 24px; text-align: center; }
+        .save-card .num { font-family: 'DM Serif Display', serif; font-size: 2.5rem; color: var(--green); }
+        .save-card .desc { font-size: 14px; color: var(--muted); margin-top: 8px; }
+        .tech { padding: 80px 0; }
+        .tech-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; }
+        .tech-card { background: rgba(0,20,10,0.5); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+        .tech-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--green); }
+        .tech-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+        .cta { padding: 100px 0; text-align: center; }
+        .cta-box { background: linear-gradient(180deg, rgba(0,230,118,0.1) 0%, rgba(0,20,10,0.5) 100%); border: 1px solid var(--green); border-radius: 24px; padding: 64px 48px; }
+        .cta-box h2 { font-family: 'DM Serif Display', serif; font-size: clamp(1.8rem, 4vw, 2.5rem); margin-bottom: 16px; }
+        .cta-box p { font-size: 16px; color: var(--muted); max-width: 500px; margin: 0 auto 32px; line-height: 1.6; }
+        .waitlist-form { display: flex; gap: 12px; max-width: 420px; margin: 0 auto 16px; }
+        .waitlist-form input { flex: 1; padding: 14px 20px; border-radius: 10px; border: 1px solid var(--border); background: rgba(0,0,0,0.3); color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px; outline: none; }
+        .waitlist-form input:focus { border-color: var(--green); }
+        .waitlist-form input::placeholder { color: var(--muted); }
+        .waitlist-form button { background: var(--green); color: var(--bg); padding: 14px 28px; border-radius: 10px; border: none; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 15px; cursor: pointer; transition: all 0.2s; }
+        .waitlist-form button:hover { box-shadow: 0 0 30px rgba(0,230,118,0.3); }
+        .waitlist-note { font-size: 12px; color: var(--muted); }
+        .waitlist-success { display: none; color: var(--green); font-weight: 700; font-size: 16px; margin-top: 16px; }
+        footer { border-top: 1px solid var(--border); padding: 40px 0; text-align: center; }
+        footer p { font-size: 13px; color: var(--muted); }
+        footer a { color: var(--green); text-decoration: none; }
+        @media(max-width:768px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .steps { grid-template-columns: repeat(2, 1fr); }
+            .compare-grid { grid-template-columns: 1fr; }
+            .compare-card.winner { transform: none; }
+            .corridor-grid { grid-template-columns: repeat(3, 1fr); }
+            .savings-grid { grid-template-columns: 1fr; }
+            .tech-grid { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-mesh"></div>
+    <div class="container">
+        <nav>
+            <div class="logo">Zaka<span>Pay</span></div>
+            <div class="nav-links">
+                <a href="#how">How It Works</a>
+                <a href="#compare">Pricing</a>
+                <a href="#corridors">Corridors</a>
+                <a href="https://github.com/NgeliMrasi/zakapay" target="_blank">GitHub</a>
+            </div>
+            <a href="#waitlist" class="nav-cta">Join Waitlist</a>
+        </nav>
+        <section class="hero">
+            <div class="hero-badge">Built on Stellar Blockchain</div>
+            <h1>Send money home<br>for <span class="green">R10 flat fee.</span><br>Via WhatsApp.</h1>
+            <p>Cross-border payments to 10 African countries. No app download. No bank account. No data bundle. Just WhatsApp.</p>
+            <div class="hero-buttons">
+                <a href="#waitlist" class="btn-primary">Join the Waitlist</a>
+                <a href="https://github.com/NgeliMrasi/zakapay" target="_blank" class="btn-secondary">View on GitHub</a>
+            </div>
+        </section>
+        <section class="stats">
+            <div class="stat"><div class="num">R10</div><div class="desc">Flat fee</div></div>
+            <div class="stat"><div class="num">5 sec</div><div class="desc">Settlement</div></div>
+            <div class="stat"><div class="num">10</div><div class="desc">Countries</div></div>
+            <div class="stat"><div class="num">0%</div><div class="desc">FX markup</div></div>
+        </section>
+        <section class="how" id="how">
+            <div class="section-label">How It Works</div>
+            <div class="section-title">Four steps. One WhatsApp.</div>
+            <div class="section-desc">No app downloads. No bank visits. No paperwork. Just send a message.</div>
+            <div class="steps">
+                <div class="step"><div class="num">01</div><h3>Verify</h3><p>Send a selfie and your ID on WhatsApp. Admin approves in minutes.</p></div>
+                <div class="step"><div class="num">02</div><h3>Deposit</h3><p>Tell us how much. Money appears in your wallet instantly.</p></div>
+                <div class="step"><div class="num">03</div><h3>Send</h3><p>Give a phone number. We detect the country. R10 flat fee. Done.</p></div>
+                <div class="step"><div class="num">04</div><h3>Receive</h3><p>Recipient gets local currency in 5 seconds. On-chain receipt.</p></div>
+            </div>
+        </section>
+        <section class="compare" id="compare">
+            <div class="section-label">Pricing</div>
+            <div class="section-title">Send R2,000 to Zimbabwe.</div>
+            <div class="section-desc">See what your family actually receives with each provider.</div>
+            <div class="compare-grid">
+                <div class="compare-card">
+                    <div class="name">Western Union</div>
+                    <div class="compare-row"><span class="label">Fee</span><span class="val red">R120</span></div>
+                    <div class="compare-row"><span class="label">FX markup</span><span class="val red">~6%</span></div>
+                    <div class="compare-row"><span class="label">Total cost</span><span class="val red">R200+</span></div>
+                    <div class="compare-row"><span class="label">Speed</span><span class="val">Minutes</span></div>
+                    <div class="compare-received"><div class="amount" style="color:var(--red)">USD 97.80</div><div class="note">Recipient receives</div></div>
+                    <span class="compare-badge bad">10% cost</span>
+                </div>
+                <div class="compare-card">
+                    <div class="name">Mukuru</div>
+                    <div class="compare-row"><span class="label">Fee</span><span class="val gold">R50</span></div>
+                    <div class="compare-row"><span class="label">FX markup</span><span class="val gold">~4%</span></div>
+                    <div class="compare-row"><span class="label">Total cost</span><span class="val gold">R130</span></div>
+                    <div class="compare-row"><span class="label">Speed</span><span class="val">Minutes</span></div>
+                    <div class="compare-received"><div class="amount" style="color:var(--gold)">USD 101.42</div><div class="note">Recipient receives</div></div>
+                    <span class="compare-badge mid">6.5% cost</span>
+                </div>
+                <div class="compare-card winner">
+                    <div class="name">ZakaPay</div>
+                    <div class="compare-row"><span class="label">Fee</span><span class="val green">R10</span></div>
+                    <div class="compare-row"><span class="label">FX markup</span><span class="val green">0%</span></div>
+                    <div class="compare-row"><span class="label">Total cost</span><span class="val green">R10</span></div>
+                    <div class="compare-row"><span class="label">Speed</span><span class="val green">5 seconds</span></div>
+                    <div class="compare-received"><div class="amount">USD 107.46</div><div class="note">Recipient receives</div></div>
+                    <span class="compare-badge good">0.5% cost</span>
+                </div>
+            </div>
+        </section>
+        <section class="corridors" id="corridors">
+            <div class="section-label">Corridors</div>
+            <div class="section-title">10 African countries. One WhatsApp.</div>
+            <div class="section-desc">Send money to anyone. We detect the country from the phone number.</div>
+            <div class="corridor-grid">
+                <div class="corridor"><div class="flag">Zimbabwe</div><div class="name">Zimbabwe</div><div class="code">+263 USD</div></div>
+                <div class="corridor"><div class="flag">Tanzania</div><div class="name">Tanzania</div><div class="code">+255 TZS</div></div>
+                <div class="corridor"><div class="flag">Mozambique</div><div class="name">Mozambique</div><div class="code">+258 MZN</div></div>
+                <div class="corridor"><div class="flag">Kenya</div><div class="name">Kenya</div><div class="code">+254 KES</div></div>
+                <div class="corridor"><div class="flag">Nigeria</div><div class="name">Nigeria</div><div class="code">+234 NGN</div></div>
+                <div class="corridor"><div class="flag">Zambia</div><div class="name">Zambia</div><div class="code">+260 ZMW</div></div>
+                <div class="corridor"><div class="flag">Malawi</div><div class="name">Malawi</div><div class="code">+265 MWK</div></div>
+                <div class="corridor"><div class="flag">Ghana</div><div class="name">Ghana</div><div class="code">+233 GHS</div></div>
+                <div class="corridor"><div class="flag">Somalia</div><div class="name">Somalia</div><div class="code">+252 USD</div></div>
+                <div class="corridor"><div class="flag">Ethiopia</div><div class="name">Ethiopia</div><div class="code">+251 ETB</div></div>
+            </div>
+        </section>
+        <section class="savings">
+            <div class="section-label">Savings</div>
+            <div class="section-title">What you save with ZakaPay</div>
+            <div class="section-desc">A typical sender saving R190 per R2,000 transfer.</div>
+            <div class="savings-grid">
+                <div class="save-card"><div class="num">R190</div><div class="desc">Saved per R2,000 transfer</div></div>
+                <div class="save-card"><div class="num">R1,900</div><div class="desc">Saved per month (R20K volume)</div></div>
+                <div class="save-card"><div class="num">R22,800</div><div class="desc">Saved per year</div></div>
+            </div>
+        </section>
+        <section class="tech" id="tech">
+            <div class="section-label">Technology</div>
+            <div class="section-title">Built on Stellar Blockchain</div>
+            <div class="section-desc">Every transaction is on-chain. Verifiable. Transparent.</div>
+            <div class="tech-grid">
+                <div class="tech-card"><h3>WhatsApp Native</h3><p>Zero friction. No app download. Just WhatsApp.</p></div>
+                <div class="tech-card"><h3>Stellar DEX</h3><p>ZARC stablecoin. Cross-border FX via decentralized exchange.</p></div>
+                <div class="tech-card"><h3>AI-Powered</h3><p>Natural language. Users just talk.</p></div>
+                <div class="tech-card"><h3>On-Chain KYC</h3><p>WhatsApp selfie + ID. Admin dashboard. FICA-ready.</p></div>
+                <div class="tech-card"><h3>Escrow System</h3><p>Send to unregistered users. Money waits in escrow.</p></div>
+                <div class="tech-card"><h3>R10 Flat Fee</h3><p>One fee. Any country. No hidden costs.</p></div>
+            </div>
+        </section>
+        <section class="cta" id="waitlist">
+            <div class="cta-box">
+                <h2>Join the ZakaPay Waitlist</h2>
+                <p>Be first to send money home for R10. Early users get zero-fee transfers for the first month.</p>
+                <form class="waitlist-form" id="waitlistForm" action="/waitlist" method="POST">
+                    <input type="email" name="email" placeholder="your@email.com" required>
+                    <button type="submit">Join</button>
+                </form>
+                <div class="waitlist-note">No spam. Just launch updates.</div>
+                <div class="waitlist-success" id="successMsg">You are on the list. We will be in touch.</div>
+            </div>
+        </section>
+        <footer>
+            <p><strong style="color:var(--green)">ZakaPay</strong> - Built on Stellar Blockchain | <a href="https://github.com/NgeliMrasi/zakapay" target="_blank">GitHub</a> | <a href="https://stellar.expert/explorer/testnet/" target="_blank">On-Chain Proof</a> | ZakaPay Africa 2026</p>
+        </footer>
+    </div>
+    <script>
+        document.getElementById('waitlistForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = this.querySelector('input[name="email"]').value;
+            try {
+                await fetch('/waitlist', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email: email}) });
+            } catch(err) {}
+            this.style.display = 'none';
+            document.getElementById('successMsg').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

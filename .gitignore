@@ -16,3 +16,7 @@ zarc.json
 users.json
 *.env
 .env
+users_server.json
+zarc_server.json
+fix_*.py
+ai_intent.py

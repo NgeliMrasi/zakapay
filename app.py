@@ -1338,6 +1338,19 @@ def health():
 def home():
     return jsonify({"service": "ZakaPay API", "version": "5.0", "status": "running"}), 200
 
+@app.route("/waitlist", methods=["POST"])
+def waitlist():
+    try:
+        data = request.get_json() or request.form
+        email = data.get("email", "")
+        if email:
+            with open("waitlist.txt", "a") as f:
+                f.write(f"{email}\n")
+            print(f"WAITLIST: {email}")
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        return jsonify({"status": "error"}), 200
+
 @app.route("/compare", methods=["GET"])
 def compare():
     return render_template("compare.html")

@@ -1351,6 +1351,14 @@ def waitlist():
     except Exception as e:
         return jsonify({"status": "error"}), 200
 
+@app.route("/onepager", methods=["GET"])
+def onepager():
+    return render_template("onepager.html")
+
+@app.route("/pitch", methods=["GET"])
+def pitch():
+    return render_template("pitch.html")
+
 @app.route("/compare", methods=["GET"])
 def compare():
     return render_template("compare.html")

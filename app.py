@@ -38,7 +38,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # Cross-border corridors and rates (testnet demo rates)
 CORRIDORS = {
-    "zimbabwe": {"country": "Zimbabwe", "currency": "USD", "rate": 0.054, "symbol": "USD", "flag": "\U0001f1ff\U0001f1fc"},
+    "zimbabwe": {"country": "Zimbabwe", "currency": "USD", "rate": 0.05495, "symbol": "USD", "flag": "\U0001f1ff\U0001f1fc"},
     "tanzania": {"country": "Tanzania", "currency": "TZS", "rate": 290.5, "symbol": "TZS", "flag": "\U0001f1f9\U0001f1ff"},
     "mozambique": {"country": "Mozambique", "currency": "MZN", "rate": 3.38, "symbol": "MZN", "flag": "\U0001f1f2\U0001f1ff"},
     "kenya": {"country": "Kenya", "currency": "KES", "rate": 6.95, "symbol": "KES", "flag": "\U0001f1f0\U0001f1ea"},

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ZakaPay v5.0 — Cross-Border Payments + KYC + Escrow
-Send money anywhere in Africa. R10 flat fee. 5 seconds.
+Send money to Zimbabwe. R50 flat fee. 5 seconds. No hidden fees.
 """
 
 import os
@@ -50,7 +50,7 @@ CORRIDORS = {
     "ethiopia": {"country": "Ethiopia", "currency": "ETB", "rate": 3.12, "symbol": "ETB", "flag": "\U0001f1ea\U0001f1f9"},
 }
 
-CROSS_BORDER_FEE = 10.00  # R10 flat fee
+CROSS_BORDER_FEE = 50.00  # R50 flat fee
 
 # Phone prefix to country mapping
 PHONE_PREFIXES = {
@@ -448,7 +448,7 @@ def resp_help():
         f"  \"Send money to Zimbabwe\"\n"
         f"  \"Send 1000 to Tanzania\"\n"
         f"  \"Show my transactions\"\n\n"
-        f"Cross-border: R10 flat fee. 5 seconds. Anywhere in Africa.\n\n"
+        f"Cross-border: R50 flat fee. 5 seconds. No hidden fees.\n\n"
         f"Support: ngeli@zakapay.africa"
     )
 
@@ -469,7 +469,7 @@ def resp_crossborder_prompt():
     corridors = "\n".join([f"  {v['flag']} {v['country']}" for v in CORRIDORS.values()])
     return (
         f"Send money anywhere in Africa!\n\n"
-        f"R10 flat fee. Arrives in 5 seconds.\n\n"
+        f"R50 flat fee. No hidden fees. No FX markup.\n\n"
         f"Where are you sending?\n\n"
         f"{corridors}\n\n"
         f"Just tell me the country name."
@@ -480,7 +480,7 @@ def resp_crossborder_amount(country_info):
         f"Sending to {country_info['flag']} {country_info['country']}.\n\n"
         f"How much do you want to send (in Rands)?\n\n"
         f"Example: 1000\n\n"
-        f"Fee: R10.00 flat\n"
+        f"Fee: R50.00 flat\n"
         f"Rate: R1 = {country_info['rate']} {country_info['currency']}"
     )
 
@@ -1039,7 +1039,7 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
                 f"{country_info['flag']} {country_info['country']} detected from {detected_phone}\n\n"
                 f"How much do you want to send (in Rands)?\n\n"
                 f"Example: 1000\n\n"
-                f"Fee: R10.00 flat\n"
+                f"Fee: R50.00 flat\n"
                 f"Rate: R1 = {country_info['rate']} {country_info['currency']}"
             )
 

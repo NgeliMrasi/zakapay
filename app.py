@@ -487,7 +487,7 @@ def resp_crossborder_amount(country_info):
 def resp_crossborder_confirm(amount, country_info, recipient_phone=""):
     fee = CROSS_BORDER_FEE
     total = amount + fee
-    converted = (amount - fee) * country_info["rate"]
+    converted = amount * country_info["rate"]
     to_line = f"  To: {recipient_phone}\n" if recipient_phone else ""
     return (
         f"Confirm cross-border transfer:\n\n"
@@ -502,7 +502,7 @@ def resp_crossborder_confirm(amount, country_info, recipient_phone=""):
 
 def resp_crossborder_success(amount, country_info, bal, tx):
     fee = CROSS_BORDER_FEE
-    converted = (amount - fee) * country_info["rate"]
+    converted = amount * country_info["rate"]
     return (
         f"Cross-border transfer sent!\n\n"
         f"  R{amount:,.2f} \u2192 {country_info['flag']} {country_info['country']}\n"
@@ -722,7 +722,7 @@ def do_crossborder(phone, amount, country_key, recipient_phone=""):
         zarc = load_zarc()
         za = Asset(zarc["asset_code"], zarc["issuer_public"])
         acc = server.load_account(sender_kp.public_key)
-        converted = (amount - fee) * country_info["rate"]
+        converted = amount * country_info["rate"]
         memo = f"ZP:XB:{amount:.0f}"
         tx = (
             TransactionBuilder(acc, NETWORK, 100)
@@ -1066,6 +1066,14 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             if not country_info:
                 clear_user_state(phone)
                 return resp_error("Country not found.")
+            if not recipient_phone:
+                set_user_state(phone, "awaiting_xborder_recipient:" + country_key + ":" + str(amount))
+                country_info = CORRIDORS.get(country_key)
+                return (
+                    f"Sending R{amount:,.2f} to {country_info['flag']} {country_info['country']}.\n\n"
+                    f"What is the recipient phone number?\n"
+                    f"Example: +263771234567"
+                )
             set_user_state(phone, "awaiting_xborder_confirm:" + country_key + ":" + str(amount) + ":" + recipient_phone)
             return resp_crossborder_confirm(amount, country_info, recipient_phone)
         return resp_error("Enter the amount in Rands.\nExample: 1000")
@@ -1081,6 +1089,25 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             clear_user_state(phone)
             return f"Transfer cancelled.\n\nAnything else?"
         return f"Reply YES to confirm or NO to cancel."
+
+    # Handle recipient phone number for cross-border
+    if state and state.startswith("awaiting_xborder_recipient:"):
+        parts_state = state.split(":")
+        country_key = parts_state[1]
+        saved_amount = float(parts_state[2]) if len(parts_state) > 2 and parts_state[2] else 0
+        recipient_phone = msg.strip().replace(" ", "")
+        if not recipient_phone.startswith("+"):
+            recipient_phone = "+" + recipient_phone
+        country_info = CORRIDORS.get(country_key)
+        if not country_info:
+            clear_user_state(phone)
+            return resp_error("Country not found.")
+        if saved_amount > 0:
+            set_user_state(phone, "awaiting_xborder_confirm:" + country_key + ":" + str(saved_amount) + ":" + recipient_phone)
+            return resp_crossborder_confirm(saved_amount, country_info, recipient_phone)
+        else:
+            set_user_state(phone, "awaiting_xborder_amount:" + country_key + ":" + recipient_phone)
+            return resp_crossborder_amount(country_info)
 
     # Menu numbers
     users = load_users()

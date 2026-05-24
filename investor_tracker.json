@@ -1,0 +1,79 @@
+[
+  {
+    "investor": "Octoco",
+    "email": "jacques@octoco.com",
+    "stage": "sent",
+    "last_contact": "2026-05-24 15:54",
+    "notes": "Email 1 sent"
+  },
+  {
+    "investor": "Founders Factory Africa",
+    "email": "apply@foundersfactory.africa",
+    "stage": "sent",
+    "last_contact": "2026-05-24 15:54",
+    "notes": "Email 1 sent"
+  },
+  {
+    "investor": "Antler South Africa",
+    "email": "apply@antler.co",
+    "stage": "sent",
+    "last_contact": "2026-05-24 15:54",
+    "notes": "Application submitted"
+  },
+  {
+    "investor": "Zeam Ltd",
+    "email": "tricia@zeam.money",
+    "stage": "meeting",
+    "last_contact": "2026-05-24 15:54",
+    "notes": "Tuesday May 19 11am - Teams call"
+  },
+  {
+    "investor": "Stellar Community Fund",
+    "email": "communityfund.stellar.org",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "Savant Ventures",
+    "email": "contact@savantventures.com",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "Kalon Venture Partners",
+    "email": "info@kalonvp.com",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "Grindstone Ventures",
+    "email": "hello@grindstonevc.com",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "DFS Lab",
+    "email": "applications@dfslab.org",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "Ajim Capital",
+    "email": "info@ajimcapital.com",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "Future Africa",
+    "email": "hello@futureafrica.vc",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  }
+]

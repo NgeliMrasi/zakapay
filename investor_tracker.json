@@ -3,22 +3,22 @@
     "investor": "Octoco",
     "email": "jacques@octoco.com",
     "stage": "sent",
-    "last_contact": "2026-05-24 15:54",
-    "notes": "Email 1 sent"
+    "last_contact": "2026-05-25 14:04",
+    "notes": "Reset - never sent via automation"
   },
   {
     "investor": "Founders Factory Africa",
     "email": "apply@foundersfactory.africa",
     "stage": "sent",
-    "last_contact": "2026-05-24 15:54",
-    "notes": "Email 1 sent"
+    "last_contact": "2026-05-25 14:05",
+    "notes": "Reset - never sent via automation"
   },
   {
     "investor": "Antler South Africa",
     "email": "apply@antler.co",
     "stage": "sent",
-    "last_contact": "2026-05-24 15:54",
-    "notes": "Application submitted"
+    "last_contact": "2026-05-25 14:07",
+    "notes": "Reset - never sent via automation"
   },
   {
     "investor": "Zeam Ltd",
@@ -37,15 +37,15 @@
   {
     "investor": "Savant Ventures",
     "email": "contact@savantventures.com",
-    "stage": "planned",
-    "last_contact": null,
+    "stage": "sent",
+    "last_contact": "2026-05-25 14:08",
     "notes": ""
   },
   {
     "investor": "Kalon Venture Partners",
     "email": "info@kalonvp.com",
-    "stage": "planned",
-    "last_contact": null,
+    "stage": "sent",
+    "last_contact": "2026-05-25 14:12",
     "notes": ""
   },
   {
@@ -58,22 +58,22 @@
   {
     "investor": "DFS Lab",
     "email": "applications@dfslab.org",
-    "stage": "planned",
-    "last_contact": null,
+    "stage": "sent",
+    "last_contact": "2026-05-25 14:14",
     "notes": ""
   },
   {
     "investor": "Ajim Capital",
     "email": "info@ajimcapital.com",
-    "stage": "planned",
-    "last_contact": null,
+    "stage": "sent",
+    "last_contact": "2026-05-25 14:15",
     "notes": ""
   },
   {
     "investor": "Future Africa",
     "email": "hello@futureafrica.vc",
-    "stage": "planned",
-    "last_contact": null,
+    "stage": "sent",
+    "last_contact": "2026-05-25 14:16",
     "notes": ""
   }
 ]

@@ -136,7 +136,7 @@ Verify at: https://stellar.expert/explorer/testnet/
 
 - Ngeli Mrasi — Founder and CEO — Product, Vision, Business Development
 - MiMo (Xiaomi AI) — Technical Co-Founder — Architecture, Backend, Blockchain
-- Gemini (Google AI) — Strategy and Research — Market Analysis, Pitch Strategy
+- Groq (Google AI) — Strategy and Research — Market Analysis, Pitch Strategy
 
 ---
 

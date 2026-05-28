@@ -23,9 +23,9 @@
   {
     "investor": "Zeam Ltd",
     "email": "tricia@zeam.money",
-    "stage": "meeting",
-    "last_contact": "2026-05-24 15:54",
-    "notes": "Tuesday May 19 11am - Teams call"
+    "stage": "replied",
+    "last_contact": "2026-05-28 16:07",
+    "notes": "KYC schema + deck sent. Awaiting API sandbox + session confirmation."
   },
   {
     "investor": "Stellar Community Fund",
@@ -72,8 +72,15 @@
   {
     "investor": "Future Africa",
     "email": "hello@futureafrica.vc",
+    "stage": "planned",
+    "last_contact": "2026-05-25 21:35",
+    "notes": "Requires warm intro - no public app"
+  },
+  {
+    "investor": "LinkedIn Content",
+    "email": "n/a",
     "stage": "sent",
-    "last_contact": "2026-05-25 14:16",
-    "notes": ""
+    "last_contact": "2026-05-27 12:34",
+    "notes": "Groq+Twilio stack post live"
   }
 ]

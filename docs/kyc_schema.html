@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #ffffff;
+    color: #1a1a2e;
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  .page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 60px 50px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 50px;
+    padding-bottom: 30px;
+    border-bottom: 3px solid #00b894;
+  }
+  .header .logo {
+    font-size: 32px;
+    font-weight: 700;
+    color: #00b894;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+  }
+  .header .logo span { color: #1a1a2e; }
+  .header .subtitle {
+    font-size: 14px;
+    color: #636e72;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+  }
+  .header .corridor {
+    display: inline-block;
+    background: #00b894;
+    color: white;
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-top: 10px;
+  }
+  .header .date {
+    font-size: 12px;
+    color: #b2bec3;
+    margin-top: 15px;
+  }
+
+  /* Section headers */
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 40px 0 20px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #dfe6e9;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .icon {
+    width: 32px;
+    height: 32px;
+    background: #00b894;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* Overview card */
+  .overview-card {
+    background: linear-gradient(135deg, #00b894 0%, #00a381 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+  }
+  .overview-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .overview-card p {
+    font-size: 14px;
+    opacity: 0.95;
+    line-height: 1.7;
+  }
+
+  /* Phase badges */
+  .phase-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+  }
+  .phase-pilot {
+    background: #fdcb6e;
+    color: #2d3436;
+  }
+  .phase-production {
+    background: #6c5ce7;
+    color: white;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0 25px 0;
+    font-size: 13px;
+  }
+  thead th {
+    background: #1a1a2e;
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  thead th:first-child { border-radius: 8px 0 0 0; }
+  thead th:last-child { border-radius: 0 8px 0 0; }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #ecf0f1;
+  }
+  tbody tr:nth-child(even) { background: #f8f9fa; }
+  tbody tr:hover { background: #e8f8f5; }
+
+  /* Required badge */
+  .required {
+    display: inline-block;
+    background: #00b894;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .optional {
+    display: inline-block;
+    background: #dfe6e9;
+    color: #636e72;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  /* Enum options */
+  .enum-box {
+    background: #f8f9fa;
+    border-left: 4px solid #00b894;
+    padding: 12px 16px;
+    margin: 10px 0 20px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .enum-box .label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #00b894;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .enum-box .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .enum-box .opt {
+    background: white;
+    border: 1px solid #dfe6e9;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #2d3436;
+  }
+
+  /* Flow diagram */
+  .flow-container {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 20px 0;
+  }
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow-step {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .flow-dot {
+    width: 36px;
+    height: 36px;
+    background: #00b894;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+  }
+  .flow-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #2d3436;
+    padding: 8px 0;
+  }
+  .flow-text .detail {
+    font-size: 11px;
+    color: #636e72;
+    font-weight: 400;
+  }
+  .flow-line {
+    width: 2px;
+    height: 20px;
+    background: #00b894;
+    margin-left: 17px;
+    opacity: 0.4;
+  }
+
+  /* Compliance checks */
+  .checks-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 15px 0 25px 0;
+  }
+  .check-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 16px;
+    border-left: 4px solid #00b894;
+  }
+  .check-card .check-num {
+    font-size: 10px;
+    font-weight: 700;
+    color: #00b894;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .check-card .check-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #2d3436;
+    margin-bottom: 2px;
+  }
+  .check-card .check-desc {
+    font-size: 11px;
+    color: #636e72;
+  }
+
+  /* Notes section */
+  .notes-box {
+    background: linear-gradient(135deg, #1a1a2e 0%, #2d3436 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin: 25px 0;
+  }
+  .notes-box h4 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #00b894;
+  }
+  .notes-box ul {
+    list-style: none;
+    padding: 0;
+  }
+  .notes-box li {
+    font-size: 13px;
+    padding: 5px 0;
+    padding-left: 20px;
+    position: relative;
+    opacity: 0.9;
+  }
+  .notes-box li::before {
+    content: ">";
+    position: absolute;
+    left: 0;
+    color: #00b894;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 50px;
+    padding-top: 20px;
+    border-top: 2px solid #dfe6e9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer .left {
+    font-size: 12px;
+    color: #636e72;
+  }
+  .footer .left strong {
+    color: #1a1a2e;
+  }
+  .footer .right {
+    text-align: right;
+  }
+  .footer .right .url {
+    font-size: 14px;
+    font-weight: 700;
+    color: #00b894;
+  }
+  .footer .right .email {
+    font-size: 11px;
+    color: #636e72;
+  }
+
+  /* Two column layout for sender/beneficiary */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 15px 0;
+  }
+  .col-card {
+    border: 1px solid #ecf0f1;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .col-card .col-header {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+  }
+  .col-card .col-header.sender { background: #0984e3; }
+  .col-card .col-header.beneficiary { background: #6c5ce7; }
+  .col-card .col-body {
+    padding: 12px 16px;
+  }
+  .col-card .col-body .field {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 12px;
+    border-bottom: 1px solid #f1f2f6;
+  }
+  .col-card .col-body .field:last-child { border-bottom: none; }
+  .col-card .col-body .field .fname { font-weight: 500; color: #2d3436; }
+  .col-card .col-body .field .ftype { color: #636e72; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+  /* Cap badge */
+  .cap-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffeaa7;
+    color: #2d3436;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 10px 0;
+  }
+  .cap-badge .cap-icon {
+    font-size: 16px;
+  }
+
+  @media print {
+    body { padding: 0; }
+    .page { padding: 40px; }
+    .page-break { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">Zaka<span>Pay</span></div>
+    <div class="subtitle">Compliance Documentation</div>
+    <h1>Travel Rule / KYC Data Schema</h1>
+    <div class="corridor">South Africa to Zimbabwe</div>
+    <div class="date">Prepared May 2026 | Confidential</div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="overview-card">
+    <h3>Purpose</h3>
+    <p>This document defines the sender and beneficiary data fields ZakaPay captures inside the WhatsApp flow to satisfy Travel Rule and FICA/RBZ compliance requirements for the SA to ZW remittance corridor. ZakaPay uses AI-native intent parsing to capture these fields conversationally inside WhatsApp. No app download. No web forms. No friction.</p>
+  </div>
+
+  <!-- PILOT PHASE -->
+  <div class="section-title">
+    <div class="icon">1</div>
+    Minimal Viable Schema
+  </div>
+  <div class="phase-badge phase-pilot">Pilot Phase</div>
+  <div class="cap-badge">
+    <span class="cap-icon">&#9888;</span>
+    R5,000 per-transaction cap | Single corridor: SA to ZW
+  </div>
+
+  <div class="two-col">
+    <div class="col-card">
+      <div class="col-header sender">SENDER (South Africa)</div>
+      <div class="col-body">
+        <div class="field"><span class="fname">First Name</span><span class="ftype">String</span></div>
+        <div class="field"><span class="fname">Last Name</span><span class="ftype">String</span></div>
+        <div class="field"><span class="fname">SA ID Number</span><span class="ftype">13 digits</span></div>
+        <div class="field"><span class="fname">Phone Number</span><span class="ftype">+27 auto</span></div>
+        <div class="field"><span class="fname">Selfie Photo</span><span class="ftype">Image</span></div>
+        <div class="field"><span class="fname">ID Document Photo</span><span class="ftype">Image</span></div>
+      </div>
+    </div>
+    <div class="col-card">
+      <div class="col-header beneficiary">BENEFICIARY (Zimbabwe)</div>
+      <div class="col-body">
+        <div class="field"><span class="fname">Full Name</span><span class="ftype">String</span></div>
+        <div class="field"><span class="fname">Phone Number</span><span class="ftype">+263</span></div>
+        <div class="field"><span class="fname">Mobile Money</span><span class="ftype">Enum</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="enum-box">
+    <div class="label">Mobile Money Providers</div>
+    <div class="options">
+      <span class="opt">EcoCash</span>
+      <span class="opt">OneMoney</span>
+      <span class="opt">InnBucks</span>
+    </div>
+  </div>
+
+  <!-- PILOT FULL TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th>Field</th>
+        <th>Type</th>
+        <th>Required</th>
+        <th>Capture Method</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>First Name</strong></td><td>String</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>Last Name</strong></td><td>String</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>SA ID Number</strong></td><td>String (13 digits)</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>Phone Number</strong></td><td>String (+27)</td><td><span class="required">AUTO</span></td><td>Twilio inbound</td></tr>
+      <tr><td><strong>Selfie Photo</strong></td><td>Image</td><td><span class="required">YES</span></td><td>WhatsApp image</td></tr>
+      <tr><td><strong>ID Document Photo</strong></td><td>Image</td><td><span class="required">YES</span></td><td>WhatsApp image</td></tr>
+      <tr><td><strong>Beneficiary Name</strong></td><td>String</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>Beneficiary Phone</strong></td><td>String (+263)</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>Mobile Money Provider</strong></td><td>Enum</td><td><span class="required">YES</span></td><td>WhatsApp menu</td></tr>
+    </tbody>
+  </table>
+
+  <!-- PRODUCTION PHASE -->
+  <div class="section-title page-break">
+    <div class="icon">2</div>
+    Full Production Schema
+  </div>
+  <div class="phase-badge phase-production">Production Phase</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Additional Field</th>
+        <th>Type</th>
+        <th>Required</th>
+        <th>Capture Method</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Physical Address</strong></td><td>String</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>Date of Birth</strong></td><td>Date</td><td><span class="required">YES</span></td><td>Parsed from ID</td></tr>
+      <tr><td><strong>Source of Funds</strong></td><td>Enum</td><td><span class="required">YES</span></td><td>WhatsApp menu</td></tr>
+      <tr><td><strong>Occupation</strong></td><td>String</td><td><span class="required">YES</span></td><td>WhatsApp text</td></tr>
+      <tr><td><strong>Relationship to Beneficiary</strong></td><td>Enum</td><td><span class="required">YES</span></td><td>WhatsApp menu</td></tr>
+    </tbody>
+  </table>
+
+  <div class="enum-box">
+    <div class="label">Source of Funds Options</div>
+    <div class="options">
+      <span class="opt">Employment Salary</span>
+      <span class="opt">Business Income</span>
+      <span class="opt">Savings</span>
+      <span class="opt">Pension</span>
+      <span class="opt">Other (specify)</span>
+    </div>
+  </div>
+
+  <div class="enum-box">
+    <div class="label">Relationship Options</div>
+    <div class="options">
+      <span class="opt">Spouse</span>
+      <span class="opt">Parent</span>
+      <span class="opt">Child</span>
+      <span class="opt">Sibling</span>
+      <span class="opt">Other Family</span>
+      <span class="opt">Business Partner</span>
+      <span class="opt">Other</span>
+    </div>
+  </div>
+
+  <!-- COMPLIANCE AGENT -->
+  <div class="section-title">
+    <div class="icon">3</div>
+    AI Compliance Agent
+  </div>
+
+  <div class="checks-grid">
+    <div class="check-card">
+      <div class="check-num">Check 01</div>
+      <div class="check-title">FICA Verification</div>
+      <div class="check-desc">SA ID number validated against checksum</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 02</div>
+      <div class="check-title">Sanctions Screening</div>
+      <div class="check-desc">Names checked against OFAC and UN lists</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 03</div>
+      <div class="check-title">Transaction Monitoring</div>
+      <div class="check-desc">R5,000 per-tx cap enforced</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 04</div>
+      <div class="check-title">Daily Limits</div>
+      <div class="check-desc">R10,000 per sender per day flagged</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 05</div>
+      <div class="check-title">Monthly Limits</div>
+      <div class="check-desc">R1,000,000 total volume tracked</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 06</div>
+      <div class="check-title">Pattern Detection</div>
+      <div class="check-desc">Rapid successive transactions flagged</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 07</div>
+      <div class="check-title">Audit Trail</div>
+      <div class="check-desc">All txs logged with timestamps for SARB</div>
+    </div>
+    <div class="check-card">
+      <div class="check-num">Check 08</div>
+      <div class="check-title">Real-Time Enforcement</div>
+      <div class="check-desc">Checks run before tx hits Stellar ledger</div>
+    </div>
+  </div>
+
+  <!-- DATA FLOW -->
+  <div class="section-title">
+    <div class="icon">4</div>
+    End-to-End Data Flow
+  </div>
+
+  <div class="flow-container">
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="flow-dot">1</div>
+        <div class="flow-text">WhatsApp Message<span class="detail"> - User sends text or image</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">2</div>
+        <div class="flow-text">Twilio Webhook<span class="detail"> - Message received and routed</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">3</div>
+        <div class="flow-text">AI Intent Parser<span class="detail"> - Groq LLM extracts meaning</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">4</div>
+        <div class="flow-text">KYC Field Extraction<span class="detail"> - Sender and beneficiary data captured</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">5</div>
+        <div class="flow-text">Compliance Agent<span class="detail"> - FICA, sanctions, limits checked</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">6</div>
+        <div class="flow-text">Zeam API<span class="detail"> - Sender + beneficiary data submitted</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">7</div>
+        <div class="flow-text">Stellar Ledger<span class="detail"> - On-chain settlement in 5 seconds</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step">
+        <div class="flow-dot">8</div>
+        <div class="flow-text">Confirmation<span class="detail"> - WhatsApp receipt with tx hash</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div class="notes-box">
+    <h4>Key Design Principles</h4>
+    <ul>
+      <li>All data captured conversationally inside WhatsApp</li>
+      <li>No app download required from sender or beneficiary</li>
+      <li>Selfie and ID captured via WhatsApp image message</li>
+      <li>AI parser extracts fields from natural text input</li>
+      <li>Compliance checks run in real-time before transaction submission</li>
+      <li>Full audit trail exportable for SARB sandbox reporting</li>
+      <li>Two-tier schema: minimal pilot set for speed, full set for production</li>
+    </ul>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="left">
+      <strong>ZakaPay Africa Technologies</strong><br>
+      Cape Town, South Africa<br>
+      May 2026 | Confidential
+    </div>
+    <div class="right">
+      <div class="url">zakapay.africa</div>
+      <div class="email">ngeli@zakapay.africa</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

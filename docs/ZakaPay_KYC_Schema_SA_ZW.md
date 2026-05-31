@@ -36,11 +36,18 @@ R5,000 per-transaction cap. Single corridor SA to ZW.
 | Full Name | String | Yes | WhatsApp text |
 | Phone Number | String (+263) | Yes | WhatsApp text |
 | Mobile Money Provider | Enum | Yes | WhatsApp selection |
+| Beneficiary ID Type | Enum | Conditional | WhatsApp menu |
+| Beneficiary ID Number | String | Conditional | WhatsApp text |
 
 Provider options:
 - EcoCash
 - OneMoney
 - InnBucks
+
+Beneficiary ID rules:
+- Transactions below R3,000: ID optional
+- Transactions R3,000 and above: ID required
+- ID types: Zimbabwe National ID, Passport, Driver's License
 
 ---
 
@@ -81,6 +88,43 @@ Relationship options:
 
 ---
 
+## Travel Rule Data Exchange (FATF Compliant)
+
+ZakaPay transmits originator and beneficiary data alongside every transaction.
+Data format: JSON payload attached to Stellar memo field.
+
+### Originator Data (Sender)
+- full_name
+- id_type (SA ID / Passport)
+- id_number
+- phone_number
+- physical_address
+
+### Beneficiary Data (Recipient)
+- full_name
+- phone_number
+- id_type (conditional: required above R3,000)
+- id_number (conditional: required above R3,000)
+- mobile_money_provider
+- mobile_money_account
+
+### Transmission Method
+- Data attached to Stellar transaction memo (JSON-encoded)
+- Companion data shared via API endpoint to receiving VASP
+- Retained in ZakaPay audit log for 5 years (FICA requirement)
+
+---
+
+## Data Retention and Audit Export
+
+- Retention period: 5 years (FICA requirement)
+- Export formats: CSV, JSON
+- Export triggers: Manual (WhatsApp command) or scheduled (monthly)
+- SARB sandbox reporting: Structured JSON export with full tx metadata
+- Fields exported: timestamp, sender, beneficiary, amount, fee, FX rate, tx hash, compliance checks
+
+---
+
 ## AI Compliance Agent Integration
 
 ZakaPay compliance agent runs the following checks automatically:
@@ -114,6 +158,8 @@ WhatsApp Message
 - No app download required from sender or beneficiary
 - Selfie + ID captured via WhatsApp image message
 - AI parser extracts fields from natural text input
+- Liveness check: Video note verification (WhatsApp native) for pilot
+- Beneficiary ID: Required for transactions R3,000 and above
 - Compliance checks run in real-time before transaction submission
 - Full audit trail exportable for SARB sandbox reporting
 

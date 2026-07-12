@@ -22,9 +22,11 @@ DB_FILE = "users.json"
 STATE_FILE = "user_states.json"
 ESCROW_FILE = "escrow.json"
 KYC_FILE = "kyc_submissions.json"
+CONFIG_FILE = "/data/data/com.termux/files/home/ZakaPay-project/zarc.json"
 server = Server(horizon_url=HORIZON)
 
-ZARC_EMBEDDED = {
+# Hardcoded fallback values in case zarc.json is missing
+ZARC_EMBEDDED_FALLBACK = {
     "asset_code": "ZARC",
     "issuer_public": "GB2YP3NLSRJCO2TGIX6XYD4UQA2IG6CRUSTLUJPP4KS2OCFU6DWWPRGP",
     "issuer_secret": "SBEUK5WLNNWG4HLQUKXIZVDXVP5ZGQIZS5VVUOKEIXVHAWR3MQ24CKWP",
@@ -201,7 +203,20 @@ def save_users(users):
         print(f"DB SAVE ERROR: {e}")
 
 def load_zarc():
-    return ZARC_EMBEDDED
+    """Load dynamically generated stablecoin configs if available."""
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            data = json.load(f)
+            return {
+                "asset_code": data.get("asset_code", "ZARC"),
+                "issuer_public": data.get("issuer_public"),
+                "issuer_secret": data.get("issuer_secret"),
+                "distribution_public": data.get("distribution_public"),
+                "distribution_secret": data.get("distribution_secret"),
+                "liquidity_pool_id": data.get("liquidity_pool_id")
+            }
+    except FileNotFoundError:
+        return ZARC_EMBED_FALLBACK
 
 def get_balance(public_key, asset_code="native"):
     try:
@@ -929,10 +944,7 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
     users = load_users()
     _, user = find_user(users, phone)
 
-    # ═══════════════════════════════════════
-    # STEP 1: ALWAYS CHECK GREETING FIRST
-    # This MUST come before state checks
-    # ═══════════════════════════════════════
+    # GREETING ROUTE CHECK FIRST
     if lower in ["hi", "hello", "hey", "start", "yebo", "howzit", "heita", "0", "menu", "back"]:
         clear_user_state(phone)
         if user:
@@ -951,12 +963,9 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             set_user_state(phone, "awaiting_kyc_selfie")
             return resp_new_user()
 
-    # ═══════════════════════════════════════
-    # STEP 2: GET STATE
-    # ═══════════════════════════════════════
     state = get_user_state(phone)
 
-    # ─── KYC Flow ───
+    # KYC Flow
     if state == "awaiting_kyc_selfie":
         if media_url and media_type and "image" in media_type:
             set_user_state(phone, "awaiting_kyc_id:" + media_url)
@@ -971,7 +980,7 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             return resp_kyc_submitted()
         return f"Please send a photo of your ID or Passport.\n\nTake a clear photo and send it as an image."
 
-    # ─── Registration Flow ───
+    # Registration Flow
     if state == "awaiting_name":
         name = msg.strip().title()
         if len(name) < 2 or len(name) > 30:
@@ -987,7 +996,7 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
         clear_user_state(phone)
         return do_create_wallet(name, pin, phone)
 
-    # ─── Payment Flow States ───
+    # Payment Flow States
     if state == "awaiting_send_amount_and_phone":
         sp = msg.replace(",", "").split()
         if len(sp) >= 2:
@@ -1016,9 +1025,8 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             return do_withdraw(phone, amount)
         return resp_error("Enter the amount.\nExample: 500")
 
-    # ─── Cross-Border Flow States ───
+    # Cross-Border Flow States
     if state == "awaiting_xborder_country":
-        # Try to detect country from phone number in the message
         detected_phone = None
         detected_country = None
         for word in msg.replace(" ", "").split():
@@ -1043,7 +1051,6 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
                 f"Rate: R1 = {country_info['rate']} {country_info['currency']}"
             )
 
-        # Try matching by country name
         for key, info in CORRIDORS.items():
             if key in lower or info["country"].lower() in lower:
                 set_user_state(phone, "awaiting_xborder_amount:" + key + ":")
@@ -1068,7 +1075,6 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
                 return resp_error("Country not found.")
             if not recipient_phone:
                 set_user_state(phone, "awaiting_xborder_recipient:" + country_key + ":" + str(amount))
-                country_info = CORRIDORS.get(country_key)
                 return (
                     f"Sending R{amount:,.2f} to {country_info['flag']} {country_info['country']}.\n\n"
                     f"What is the recipient phone number?\n"
@@ -1090,7 +1096,6 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             return f"Transfer cancelled.\n\nAnything else?"
         return f"Reply YES to confirm or NO to cancel."
 
-    # Handle recipient phone number for cross-border
     if state and state.startswith("awaiting_xborder_recipient:"):
         parts_state = state.split(":")
         country_key = parts_state[1]
@@ -1109,10 +1114,7 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             set_user_state(phone, "awaiting_xborder_amount:" + country_key + ":" + recipient_phone)
             return resp_crossborder_amount(country_info)
 
-    # Menu numbers
-    users = load_users()
-    _, user = find_user(users, phone)
-
+    # Menu Selection
     if lower == "1" and user:
         clear_user_state(phone)
         return do_balance(phone)
@@ -1148,7 +1150,7 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
         clear_user_state(phone)
         return do_balance(phone)
 
-    # ─── AI BRAIN ───
+    # AI BRAIN ASSISTANCE
     user_name = user["name"] if user else None
     intent = ai_understand(msg, user_name)
 
@@ -1205,7 +1207,6 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
         if action == "crossborder" and user:
             amount = intent.get("amount", 0)
             country = intent.get("country", "").lower()
-            # Try to detect country from phone number in original message
             detected_phone = None
             for word in msg.replace(" ", "").split():
                 clean = word.strip()
@@ -1225,14 +1226,12 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
                     set_user_state(phone, "awaiting_xborder_amount:" + country + ":" + detected_phone)
                     return resp_crossborder_amount(CORRIDORS[country])
                 elif amount > 0:
-                    # Have amount but no phone — ask for phone
-                    set_user_state(phone, "awaiting_xborder_recipient:" + country)
+                    set_user_state(phone, "awaiting_xborder_recipient:" + country + ":" + str(amount))
                     return (
                         f"Sending to {CORRIDORS[country]['flag']} {CORRIDORS[country]['country']}.\n\n"
                         f"What\'s the recipient\'s phone number?\n"
                         f"Example: +263771234567"
                     )
-            # No country detected — ask for phone number
             set_user_state(phone, "awaiting_xborder_country")
             return resp_crossborder_prompt()
 
@@ -1265,7 +1264,6 @@ def _handle_message_inner(message, phone, media_url=None, media_type=None):
             clear_user_state(phone)
             return resp_history(user["public_key"])
 
-    # Nothing worked
     clear_user_state(phone)
     if user:
         return (
@@ -1323,7 +1321,7 @@ def webhook_360dialog():
     return jsonify({"reply": handle_message(msg, phone, media_url, media_type)}), 200
 
 
-# ─── Admin ───
+# ─── Admin Dashboard ───
 
 @app.route("/admin", methods=["GET"])
 def admin_dashboard():

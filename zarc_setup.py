@@ -240,4 +240,5 @@ def setup_all_users(zarc_config):
 if __name__ == "__main__":
     config = setup_zarc()
     if config:
+        pass # setup_all_users(config)
         setup_all_users(config)

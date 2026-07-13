@@ -23,9 +23,9 @@
   {
     "investor": "Zeam Ltd",
     "email": "tricia@zeam.money",
-    "stage": "replied",
-    "last_contact": "2026-05-28 16:07",
-    "notes": "KYC schema + deck sent. Awaiting API sandbox + session confirmation."
+    "stage": "sent",
+    "last_contact": "2026-07-13 11:43",
+    "notes": "Sent KYC schema + deck. Went silent."
   },
   {
     "investor": "Stellar Community Fund",
@@ -82,5 +82,12 @@
     "stage": "sent",
     "last_contact": "2026-05-27 12:34",
     "notes": "Groq+Twilio stack post live"
+  },
+  {
+    "investor": "Trustodi",
+    "email": "bryan@trustodi.com",
+    "stage": "meeting",
+    "last_contact": "2026-07-13 17:24",
+    "notes": "Discovery call Thursday 12:30 PM SAST with Bryan"
   }
 ]

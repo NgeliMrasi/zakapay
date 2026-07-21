@@ -87,7 +87,21 @@
     "investor": "Trustodi",
     "email": "bryan@trustodi.com",
     "stage": "meeting",
-    "last_contact": "2026-07-21 13:11",
-    "notes": "Discovery call completed. Bryan checking with technical team on IVMS 101, EcoCash, Stellar addresses, sandbox access."
+    "last_contact": "2026-07-21 13:12",
+    "notes": "Call failed (their technical issues). Questions sent. Awaiting reply on fees, IVMS 101, EcoCash, sandbox."
+  },
+  {
+    "investor": "Fast Forward Fund",
+    "email": "unknown",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
+  },
+  {
+    "investor": "Raba Partners",
+    "email": "unknown",
+    "stage": "planned",
+    "last_contact": null,
+    "notes": ""
   }
 ]

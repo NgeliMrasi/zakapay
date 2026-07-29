@@ -1019,6 +1019,8 @@
                 </a>
                 <span class="cta-divider">or join the waitlist</span>
                 <form class="waitlist-form" action="https://formspree.io/f/xrejbkoz" method="POST" id="waitlistForm">
+                    <input type="hidden" name="_subject" value="New ZakaPay Waitlist Sign-up">
+                    <input type="hidden" name="_replyto" value="ngeli@zakapay.africa">
                     <input type="text" name="name" placeholder="Your name" required>
                     <input type="tel" name="whatsapp" placeholder="+27 82 000 0000" required>
                     <button type="submit">Join</button>
@@ -1057,13 +1059,32 @@
             observer.observe(el);
         });
 
-        // Waitlist form
+        // Waitlist form - submit via AJAX to Formspree
         document.getElementById('waitlistForm').addEventListener('submit', function(e) {
-            // Let Formspree handle it, then show success
-            setTimeout(() => {
-                this.style.display = 'none';
-                document.getElementById('successMessage').style.display = 'block';
-            }, 500);
+            e.preventDefault();
+            var form = this;
+            var btn = form.querySelector('button');
+            btn.textContent = 'Sending...';
+            btn.disabled = true;
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'Accept': 'application/json' }
+            }).then(function(response) {
+                if (response.ok) {
+                    form.style.display = 'none';
+                    document.getElementById('successMessage').style.display = 'block';
+                } else {
+                    btn.textContent = 'Join';
+                    btn.disabled = false;
+                    alert('Something went wrong. Please try again or WhatsApp us directly.');
+                }
+            }).catch(function(error) {
+                btn.textContent = 'Join';
+                btn.disabled = false;
+                alert('Network error. Please try again or WhatsApp us directly.');
+            });
         });
         // Format phone input
         document.querySelector('input[name="whatsapp"]').addEventListener('input', function(e) {
